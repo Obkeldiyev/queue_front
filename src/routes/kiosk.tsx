@@ -11,8 +11,6 @@ import { toast } from "sonner";
 import {
   printTicketReceipt,
   estimateWaitMinutes,
-  hasDirectPrinterAccess,
-  pairBrowserPrinter,
 } from "@/lib/queue-helpers";
 import { ClientOnly } from "@/components/ClientOnly";
 
@@ -42,10 +40,6 @@ function KioskPage() {
   // issued ticket state
   const [issuedTicket, setIssuedTicket] = useState<Ticket | null>(null);
   const [countdown, setCountdown] = useState(6);
-  const [printerReady, setPrinterReady] = useState(false);
-  const [printerCheckDone, setPrinterCheckDone] = useState(false);
-  const [printerConnecting, setPrinterConnecting] = useState(false);
-  const [browserPrintMode, setBrowserPrintMode] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // menu navigation stack: [] = root, [id] = inside that menu item
@@ -56,7 +50,6 @@ function KioskPage() {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
     const b = p.get("branch"); const d = p.get("device");
-    setBrowserPrintMode(p.get("browserPrint") === "1" || p.get("kioskPrinting") === "1");
     if (b) setBranchId(b);
     if (d) setDeviceId(d);
 
@@ -85,31 +78,6 @@ function KioskPage() {
       } catch { /* ignore */ }
     })();
   }, []);
-
-  useEffect(() => {
-    if (browserPrintMode) {
-      setPrinterReady(true);
-      setPrinterCheckDone(true);
-      return;
-    }
-    void hasDirectPrinterAccess().then((ready) => {
-      setPrinterReady(ready);
-      setPrinterCheckDone(true);
-    });
-  }, [browserPrintMode]);
-
-  const connectPrinter = async () => {
-    setPrinterConnecting(true);
-    try {
-      const ok = await pairBrowserPrinter();
-      setPrinterReady(ok);
-      if (ok) toast.success("Printer connected");
-      else toast.error("Printer access was not granted");
-    } finally {
-      setPrinterConnecting(false);
-      setPrinterCheckDone(true);
-    }
-  };
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: branch } = useQuery({
@@ -181,7 +149,6 @@ function KioskPage() {
         estimatedWaitMins: estMins,
         branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
         lang,
-        silentOnly: !browserPrintMode,
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to issue ticket"),
@@ -221,33 +188,6 @@ function KioskPage() {
           <code className="mt-3 block rounded-xl bg-white/10 px-4 py-3 text-sm text-cyan-300">
             /kiosk?branch=&lt;branch_id&gt;
           </code>
-        </div>
-      </div>
-    );
-  }
-
-  if (!browserPrintMode && printerCheckDone && !printerReady) {
-    return (
-      <div className={`flex min-h-screen items-center justify-center px-6 ${bg}`}>
-        <div className={`w-full max-w-md rounded-3xl p-8 text-center shadow-2xl ${isDark ? "bg-white/10 border border-white/10" : "bg-white border border-slate-200"}`}>
-          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-900"}`}>
-            <Printer className="h-8 w-8" />
-          </div>
-          <h1 className="text-3xl font-black">Choose USB device</h1>
-          <p className={`mt-3 text-sm leading-6 ${muted}`}>
-            Select the W80/thermal printer from Chrome's USB device picker. The picker is opened with the broadest USB access Chrome allows.
-          </p>
-          <Button
-            className="mt-6 h-14 w-full text-base font-bold"
-            onClick={() => void connectPrinter()}
-            disabled={printerConnecting}
-          >
-            <Printer className="mr-2 h-5 w-5" />
-            {printerConnecting ? "Connecting..." : "Show USB devices"}
-          </Button>
-          <p className={`mt-4 text-xs ${muted}`}>
-            If the printer does not appear here, Chrome or the operating system is not exposing it to websites through WebUSB.
-          </p>
         </div>
       </div>
     );
@@ -301,7 +241,6 @@ function KioskPage() {
               estimatedWaitMins: estMins,
               branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
               lang,
-              silentOnly: !browserPrintMode,
             })}>
             <Printer className="h-4 w-4" /> {t("printTicket")}
           </Button>

@@ -380,8 +380,9 @@ export function printTicketReceipt(
     ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
     : ticketNumberOrOpts;
 
-  // A browser page cannot select printer "w80" from JavaScript. Try every
-  // browser-accessible direct path first, then use browser printing.
+  // Primary production path for Windows printer queues such as "w80":
+  // browser printing. If Chrome/Edge is launched with --kiosk-printing and
+  // w80 is the default printer, the browser prints without showing preview.
   (async () => {
     if (shouldUseLocalBridge(opts)) {
       try {
