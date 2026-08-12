@@ -38,6 +38,7 @@ export interface PrintTicketOptions {
   estimatedWaitMins?: number | null;
   branchName?: string;
   lang?: "uz" | "ru" | "en";
+  useLocalBridge?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,22 +165,23 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
 
   const ts = new Date().toLocaleTimeString();
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:80mm;font-family:'Courier New',monospace;background:#fff;color:#000}
-body{padding:6px 10px 12px}
-.wrap{border:1.5px dashed #444;padding:8px 10px 12px;border-radius:3px}
-.org{text-align:center;font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
-.ttl{text-align:center;font-size:9px;color:#666;margin-bottom:6px}
-.hr{border-top:1px dashed #bbb;margin:6px 0}
-.num{text-align:center;font-size:68px;font-weight:900;letter-spacing:4px;line-height:1;margin:8px 0}
-.winbox{border:2px solid #000;padding:5px 8px;text-align:center;margin:6px 0;font-size:13px;font-weight:bold;border-radius:3px}
+html,body{width:80mm;min-height:1px;font-family:'Courier New',monospace;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:3mm 4mm 5mm}
+.wrap{width:72mm;border:1.5px dashed #444;padding:3mm;border-radius:2px}
+.org{text-align:center;font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;word-break:break-word}
+.ttl{text-align:center;font-size:9px;color:#555;margin-bottom:5px}
+.hr{border-top:1px dashed #aaa;margin:5px 0}
+.num{text-align:center;font-size:60px;font-weight:900;letter-spacing:3px;line-height:1;margin:7px 0}
+.winbox{border:2px solid #000;padding:5px 8px;text-align:center;margin:6px 0;font-size:13px;font-weight:bold;border-radius:2px}
 .wlbl{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#555}
 .row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0}
-.lbl{color:#666}.val{font-weight:bold}
+.lbl{color:#555}.val{font-weight:bold;text-align:right;max-width:42mm;word-break:break-word}
 .footer{font-size:8px;color:#999;text-align:center;margin-top:8px}
-@media print{html,body{width:80mm}@page{size:80mm auto;margin:0}}
+@page{size:80mm auto;margin:0}
+@media print{html,body{width:80mm}.wrap{box-shadow:none}}
 </style></head><body>
 <div class="wrap">
 ${branchName ? `<div class="org">${branchName}</div>` : ""}
@@ -194,6 +196,39 @@ ${estimatedWaitMins != null ? `<div class="row"><span class="lbl">${L.wait}</spa
 <div class="hr"></div>
 <div class="footer">${L.printed}: ${ts}</div>
 </div></body></html>`;
+}
+
+function centerLine(value: string, width = 32): string {
+  const text = value.trim();
+  if (text.length >= width) return text;
+  const left = Math.floor((width - text.length) / 2);
+  return `${" ".repeat(left)}${text}`;
+}
+
+function buildReceiptText(opts: PrintTicketOptions): string {
+  const { ticketNumber, queueName: qName, counterName: cName, position, estimatedWaitMins, branchName, lang = "en" } = opts;
+  const L = {
+    uz: { title: "Navbat chiptasi", service: "Xizmat", window: "Kabinet", pos: "O'rningiz", wait: "Kutish", min: "daq", printed: "Chop etildi" },
+    ru: { title: "Талон очереди", service: "Услуга", window: "Кабинет", pos: "Место", wait: "Ожидание", min: "мин", printed: "Напечатано" },
+    en: { title: "Queue Ticket", service: "Service", window: "Window", pos: "Position", wait: "Wait", min: "min", printed: "Printed" },
+  }[lang] ?? { title: "Queue Ticket", service: "Service", window: "Window", pos: "Position", wait: "Wait", min: "min", printed: "Printed" };
+
+  const lines = [
+    branchName ? centerLine(branchName.toUpperCase()) : "",
+    centerLine(L.title),
+    "--------------------------------",
+    centerLine(ticketNumber, 32),
+    "--------------------------------",
+    `${L.service}: ${qName}`,
+  ];
+
+  if (cName) lines.push(`${L.window}: ${cName}`);
+  if (position != null) lines.push(`${L.pos}: ${position}`);
+  if (estimatedWaitMins != null) lines.push(`${L.wait}: ~${estimatedWaitMins} ${L.min}`);
+  lines.push("--------------------------------");
+  lines.push(`${L.printed}: ${new Date().toLocaleTimeString()}`);
+
+  return lines.filter(Boolean).join("\n");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -235,6 +270,13 @@ function printViaIframe(opts: PrintTicketOptions): void {
   }, 1500);
 }
 
+function shouldUseLocalBridge(opts: PrintTicketOptions): boolean {
+  if (opts.useLocalBridge) return true;
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("printBridge") === "1" || localStorage.getItem("qms_use_print_bridge") === "1";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API — try serial first (silent), fall back to iframe
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,17 +299,25 @@ export function printTicketReceipt(
     ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
     : ticketNumberOrOpts;
 
-  // Try local kiosk print daemon first (no browser print UI), then serial, then iframe.
+  // A browser page cannot select printer "w80" or suppress Chrome/Edge print UI.
+  // We only use the local bridge when explicitly enabled; normal deployed kiosk
+  // pages go straight to browser printing with an 80mm receipt layout.
   (async () => {
-    try {
-      const resp = await fetch("http://localhost:4020/print", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: buildReceiptHtml(opts) }),
-      });
-      if (resp.ok) return;
-    } catch {
-      // ignore and continue to other fallbacks
+    if (shouldUseLocalBridge(opts)) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 500);
+        const resp = await fetch("http://localhost:4020/print", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: buildReceiptText(opts), html: buildReceiptHtml(opts) }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (resp.ok) return;
+      } catch {
+        // ignore and continue to other fallbacks
+      }
     }
 
     const used = await printViaSerial(opts).catch(() => false);

@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "printer": "node tools/kiosk-printer-daemon.js",
+    "printer:epson": "node tools/kiosk-printer-daemon.js --printer \"EPSON WF-5620 Series\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
