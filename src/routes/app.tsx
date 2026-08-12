@@ -30,7 +30,7 @@ export const Route = createFileRoute("/app")({
     const user = getUserFromStorage();
     const token = localStorage.getItem("qms_access_token");
     const refresh = localStorage.getItem("qms_refresh_token");
-    if (!token && !user && !refresh) throw redirect({ to: "/login" as any });
+    if ((!token && !refresh) || !user) throw redirect({ to: "/login" as any });
     if (user?.type === "platform_user" && pathname !== "/app/companies") {
       throw redirect({ to: "/app/companies" as any });
     }
@@ -78,6 +78,10 @@ function AppLayout() {
   const { t, lang, setLang } = useLang();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  if (user?.type === "platform_user") {
+    return <Outlet />;
+  }
 
   const companyId = user?.company_id ?? currentCompanyId ?? "";
 

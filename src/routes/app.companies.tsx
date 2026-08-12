@@ -30,8 +30,8 @@ export const Route = createFileRoute("/app/companies")({
     const user = getUserFromStorage();
     const token = localStorage.getItem("qms_access_token");
     const refresh = localStorage.getItem("qms_refresh_token");
-    if (!token && !user && !refresh) throw redirect({ to: "/login" as any });
-    if (user?.type === "company_user") throw redirect({ to: "/app" as any });
+    if ((!token && !refresh) || !user) throw redirect({ to: "/login" as any });
+    if (user.type !== "platform_user") throw redirect({ to: "/app" as any });
   },
   component: SuperAdminCompanies,
 });
