@@ -1,59 +1,164 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/lib/auth-store";
+import { requireCompanyAdmin } from "@/lib/guards";
 import { useStore } from "@/lib/store";
-import { PageHeader, EmptyState } from "@/components/qms/ui";
+import { useLang, loc } from "@/lib/i18n";
+import { servicesApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Layers } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/services")({ component: Services });
+export const Route = createFileRoute("/app/services")({
+  beforeLoad: requireCompanyAdmin,
+  component: Services,
+});
 
 function Services() {
-  const { services, currentCompanyId, addService, removeService } = useStore();
-  const list = services.filter((s) => s.companyId === currentCompanyId);
+  const { user } = useAuthStore();
+  const { currentCompanyId, currentBranchId } = useStore();
+  const { lang } = useLang();
+  const qc = useQueryClient();
+  const companyId = user?.company_id ?? currentCompanyId ?? "";
+
+  const { data: services = [], isLoading } = useQuery({
+    queryKey: ["services", companyId],
+    queryFn: () =>
+      servicesApi.list({ company_id: companyId }).then((r) => r.data),
+    enabled: !!companyId,
+  });
+
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", avgTime: 10, priority: 1, prefix: "S" });
+  const [form, setForm] = useState({
+    name_uz: "", name_ru: "", name_en: "",
+    description_uz: "", estimated_time_mins: 10, prefix: "A",
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      servicesApi.create({
+        company_id: companyId,
+        ...(currentBranchId && { branch_id: currentBranchId }),
+        name_uz: form.name_uz,
+        name_ru: form.name_ru || undefined,
+        name_en: form.name_en || undefined,
+        description_uz: form.description_uz || undefined,
+        estimated_time_mins: form.estimated_time_mins,
+      }),
+    onSuccess: () => {
+      toast.success("Service created");
+      setOpen(false);
+      setForm({ name_uz: "", name_ru: "", name_en: "", description_uz: "", estimated_time_mins: 10, prefix: "A" });
+      void qc.invalidateQueries({ queryKey: ["services"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => servicesApi.delete(id),
+    onSuccess: () => {
+      toast.success("Service deleted");
+      void qc.invalidateQueries({ queryKey: ["services"] });
+    },
+  });
+
   return (
     <div>
-      <PageHeader title="Services" description="What this company offers" actions={
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Services</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">What this company offers in its queues</p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-1 h-4 w-4" />New service</Button></DialogTrigger>
+          <DialogTrigger asChild>
+            <Button><Plus className="mr-1.5 h-4 w-4" />New service</Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create service</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-              <div className="col-span-2"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-              <div><Label>Avg time (min)</Label><Input type="number" value={form.avgTime} onChange={(e) => setForm({ ...form, avgTime: +e.target.value })} /></div>
-              <div><Label>Priority (0=highest)</Label><Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: +e.target.value })} /></div>
-              <div><Label>Prefix</Label><Input value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value.toUpperCase().slice(0, 4) })} /></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label>Name (UZ) *</Label>
+                  <Input value={form.name_uz} onChange={(e) => setForm({ ...form, name_uz: e.target.value })} className="mt-1" placeholder="Kreditlar" />
+                </div>
+                <div>
+                  <Label>Name (RU)</Label>
+                  <Input value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} className="mt-1" placeholder="Кредиты" />
+                </div>
+                <div>
+                  <Label>Name (EN)</Label>
+                  <Input value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} className="mt-1" placeholder="Loans" />
+                </div>
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input value={form.description_uz} onChange={(e) => setForm({ ...form, description_uz: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label>Avg. service time (minutes)</Label>
+                <Input type="number" min={1} value={form.estimated_time_mins}
+                  onChange={(e) => setForm({ ...form, estimated_time_mins: +e.target.value })} className="mt-1" />
+              </div>
             </div>
-            <DialogFooter><Button onClick={() => {
-              if (!currentCompanyId) return toast.error("No company");
-              if (!form.name) return toast.error("Name required");
-              addService({ companyId: currentCompanyId, ...form });
-              toast.success("Service added"); setOpen(false);
-              setForm({ name: "", description: "", avgTime: 10, priority: 1, prefix: "S" });
-            }}>Create</Button></DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={() => createMutation.mutate()} disabled={!form.name_uz || createMutation.isPending}>
+                {createMutation.isPending ? "Creating…" : "Create"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
-      } />
-      {list.length === 0 ? <EmptyState title="No services" /> : (
-        <div className="rounded-xl border bg-card">
+      </div>
+
+      {isLoading ? (
+        <div className="h-48 animate-pulse rounded-xl bg-muted" />
+      ) : services.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
+          <Layers className="mx-auto mb-3 h-8 w-8 opacity-30" />
+          <p className="font-medium">No services yet</p>
+          <p className="mt-1 text-sm">Create services first, then link them to queues.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-card overflow-hidden">
           <Table>
-            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Prefix</TableHead><TableHead>Avg time</TableHead><TableHead>Priority</TableHead><TableHead>Description</TableHead><TableHead></TableHead></TableRow></TableHeader>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Avg. Time</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
             <TableBody>
-              {list.map((s) => (
+              {services.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.name}</TableCell>
-                  <TableCell><code className="rounded bg-muted px-1.5 py-0.5">{s.prefix}</code></TableCell>
-                  <TableCell>{s.avgTime} min</TableCell>
-                  <TableCell>{s.priority}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.description}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => removeService(s.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                  <TableCell className="font-medium">
+                    {loc(s as unknown as Record<string, unknown>, "name", lang) || s.name_uz}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {loc(s as unknown as Record<string, unknown>, "description", lang) || s.description_uz || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {s.estimated_time_mins ? (
+                      <Badge variant="secondary">{s.estimated_time_mins} min</Badge>
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                      onClick={() => { if (confirm("Delete this service?")) deleteMutation.mutate(s.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -63,3 +168,4 @@ function Services() {
     </div>
   );
 }
+

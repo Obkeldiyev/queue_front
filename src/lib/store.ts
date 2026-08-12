@@ -48,6 +48,10 @@ interface State {
 
   setCurrentCompany: (id: ID) => void;
   setCurrentBranch: (id: ID) => void;
+  operatorSessionActive: boolean;
+  operatorCounterId?: string;
+  setOperatorSessionActive: (active: boolean) => void;
+  setOperatorCounterId: (id: string | undefined) => void;
 
   addCompany: (c: Omit<Company, "id" | "createdAt">) => Company;
   removeCompany: (id: ID) => void;
@@ -168,6 +172,10 @@ export const useStore = create<State>()(
 
       setCurrentCompany: (id) => set({ currentCompanyId: id }),
       setCurrentBranch: (id) => set({ currentBranchId: id }),
+      operatorSessionActive: false,
+      operatorCounterId: undefined,
+      setOperatorSessionActive: (active) => set({ operatorSessionActive: active }),
+      setOperatorCounterId: (id) => set({ operatorCounterId: id }),
 
       addCompany: (c) => {
         const company: Company = { ...c, id: uid(), createdAt: now() };
@@ -300,9 +308,13 @@ export const useStore = create<State>()(
     }),
     {
       name: "qms-store-v1",
-      onRehydrateStorage: () => (state) => {
-        if (state && state.companies.length === 0) state.seed();
-      },
+      skipHydration: true,
+      partialize: (state) => ({
+        currentCompanyId: state.currentCompanyId,
+        currentBranchId: state.currentBranchId,
+        operatorSessionActive: state.operatorSessionActive,
+        operatorCounterId: state.operatorCounterId,
+      }),
     }
   )
 );

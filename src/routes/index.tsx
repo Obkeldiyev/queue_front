@@ -1,14 +1,28 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { getUserFromStorage } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Layers, Smartphone, Monitor, Ticket, BarChart3, Cpu } from "lucide-react";
+import { ArrowRight, Layers, Smartphone, Monitor, Ticket, BarChart3, Cpu, LogIn } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Qubit — Universal Queue Management Platform" },
-      { name: "description", content: "One platform to manage physical and online queues, tickets, displays, ordering, notifications and analytics." },
+      { title: "Qubit QMS — Queue Management Platform" },
+      { name: "description", content: "Universal queue management platform for banks, clinics, restaurants and retail." },
     ],
   }),
+  // If already logged in, skip the landing page and go straight to the right place
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const user = getUserFromStorage();
+    const token = localStorage.getItem("qms_access_token");
+    const refresh = localStorage.getItem("qms_refresh_token");
+    if ((token || refresh) && user) {
+      if (user.type === "platform_user") throw redirect({ to: "/app/companies" as any });
+      const isOp = user.roleTypes?.includes("OPERATOR") || user.roles?.includes("Operator");
+      throw redirect({ to: (isOp ? "/operator" : "/app") as any });
+    }
+    // Not logged in — show landing page (with login button)
+  },
   component: Landing,
 });
 
@@ -37,7 +51,7 @@ function Landing() {
             <Link to="/kiosk" className="hover:text-foreground">Kiosk</Link>
             <Link to="/operator" className="hover:text-foreground">Operator</Link>
           </nav>
-          <Link to="/app"><Button>Open Dashboard <ArrowRight className="ml-1 h-4 w-4" /></Button></Link>
+          <Button asChild><Link to="/login">Sign In <LogIn className="ml-1 h-4 w-4" /></Link></Button>
         </div>
       </header>
 
@@ -54,8 +68,8 @@ function Landing() {
             Qubit is a universal queue management & customer flow platform for banks, clinics, restaurants, government and retail. Configure everything yourself — no developer required.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/app"><Button size="lg">Launch Admin Dashboard</Button></Link>
-            <Link to="/customer"><Button size="lg" variant="outline">Try Customer App</Button></Link>
+            <Button asChild size="lg"><Link to="/login"><LogIn className="mr-2 h-4 w-4" />Sign In to Dashboard</Link></Button>
+            <Button asChild size="lg" variant="outline"><Link to="/customer">Try Customer App</Link></Button>
           </div>
         </div>
       </section>
@@ -75,7 +89,7 @@ function Landing() {
       <section className="border-t bg-card/30">
         <div className="mx-auto grid max-w-7xl gap-4 px-6 py-12 md:grid-cols-4">
           {[
-            { label: "Admin Dashboard", to: "/app", desc: "Configure companies, branches, queues, devices." },
+            { label: "Admin Dashboard", to: "/login",    desc: "Sign in to configure companies, branches, queues and devices." },
             { label: "Operator", to: "/operator", desc: "Call, recall, transfer and complete tickets." },
             { label: "Kiosk", to: "/kiosk", desc: "Self-service ticket issuing terminal." },
             { label: "Display", to: "/display", desc: "Live waiting-area screen." },

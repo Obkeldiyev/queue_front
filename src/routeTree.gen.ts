@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PairRouteImport } from './routes/pair'
 import { Route as OperatorRouteImport } from './routes/operator'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as CustomerRouteImport } from './routes/customer'
@@ -23,6 +25,7 @@ import { Route as AppQueuesRouteImport } from './routes/app.queues'
 import { Route as AppPagesRouteImport } from './routes/app.pages'
 import { Route as AppOrdersRouteImport } from './routes/app.orders'
 import { Route as AppMenusRouteImport } from './routes/app.menus'
+import { Route as AppKioskEditorRouteImport } from './routes/app.kioskEditor'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
 import { Route as AppDevicesRouteImport } from './routes/app.devices'
 import { Route as AppCountersRouteImport } from './routes/app.counters'
@@ -31,9 +34,19 @@ import { Route as AppBranchesRouteImport } from './routes/app.branches'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 
+const PairRoute = PairRouteImport.update({
+  id: '/pair',
+  path: '/pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OperatorRoute = OperatorRouteImport.update({
   id: '/operator',
   path: '/operator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KioskRoute = KioskRouteImport.update({
@@ -101,6 +114,11 @@ const AppMenusRoute = AppMenusRouteImport.update({
   path: '/menus',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKioskEditorRoute = AppKioskEditorRouteImport.update({
+  id: '/kioskEditor',
+  path: '/kioskEditor',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
   id: '/employees',
   path: '/employees',
@@ -143,7 +161,9 @@ export interface FileRoutesByFullPath {
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
+  '/login': typeof LoginRoute
   '/operator': typeof OperatorRoute
+  '/pair': typeof PairRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/branches': typeof AppBranchesRoute
@@ -151,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/app/counters': typeof AppCountersRoute
   '/app/devices': typeof AppDevicesRoute
   '/app/employees': typeof AppEmployeesRoute
+  '/app/kioskEditor': typeof AppKioskEditorRoute
   '/app/menus': typeof AppMenusRoute
   '/app/orders': typeof AppOrdersRoute
   '/app/pages': typeof AppPagesRoute
@@ -165,7 +186,9 @@ export interface FileRoutesByTo {
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
+  '/login': typeof LoginRoute
   '/operator': typeof OperatorRoute
+  '/pair': typeof PairRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/branches': typeof AppBranchesRoute
@@ -173,6 +196,7 @@ export interface FileRoutesByTo {
   '/app/counters': typeof AppCountersRoute
   '/app/devices': typeof AppDevicesRoute
   '/app/employees': typeof AppEmployeesRoute
+  '/app/kioskEditor': typeof AppKioskEditorRoute
   '/app/menus': typeof AppMenusRoute
   '/app/orders': typeof AppOrdersRoute
   '/app/pages': typeof AppPagesRoute
@@ -189,7 +213,9 @@ export interface FileRoutesById {
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
+  '/login': typeof LoginRoute
   '/operator': typeof OperatorRoute
+  '/pair': typeof PairRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/audit': typeof AppAuditRoute
   '/app/branches': typeof AppBranchesRoute
@@ -197,6 +223,7 @@ export interface FileRoutesById {
   '/app/counters': typeof AppCountersRoute
   '/app/devices': typeof AppDevicesRoute
   '/app/employees': typeof AppEmployeesRoute
+  '/app/kioskEditor': typeof AppKioskEditorRoute
   '/app/menus': typeof AppMenusRoute
   '/app/orders': typeof AppOrdersRoute
   '/app/pages': typeof AppPagesRoute
@@ -214,7 +241,9 @@ export interface FileRouteTypes {
     | '/customer'
     | '/display'
     | '/kiosk'
+    | '/login'
     | '/operator'
+    | '/pair'
     | '/app/analytics'
     | '/app/audit'
     | '/app/branches'
@@ -222,6 +251,7 @@ export interface FileRouteTypes {
     | '/app/counters'
     | '/app/devices'
     | '/app/employees'
+    | '/app/kioskEditor'
     | '/app/menus'
     | '/app/orders'
     | '/app/pages'
@@ -236,7 +266,9 @@ export interface FileRouteTypes {
     | '/customer'
     | '/display'
     | '/kiosk'
+    | '/login'
     | '/operator'
+    | '/pair'
     | '/app/analytics'
     | '/app/audit'
     | '/app/branches'
@@ -244,6 +276,7 @@ export interface FileRouteTypes {
     | '/app/counters'
     | '/app/devices'
     | '/app/employees'
+    | '/app/kioskEditor'
     | '/app/menus'
     | '/app/orders'
     | '/app/pages'
@@ -259,7 +292,9 @@ export interface FileRouteTypes {
     | '/customer'
     | '/display'
     | '/kiosk'
+    | '/login'
     | '/operator'
+    | '/pair'
     | '/app/analytics'
     | '/app/audit'
     | '/app/branches'
@@ -267,6 +302,7 @@ export interface FileRouteTypes {
     | '/app/counters'
     | '/app/devices'
     | '/app/employees'
+    | '/app/kioskEditor'
     | '/app/menus'
     | '/app/orders'
     | '/app/pages'
@@ -283,16 +319,32 @@ export interface RootRouteChildren {
   CustomerRoute: typeof CustomerRoute
   DisplayRoute: typeof DisplayRoute
   KioskRoute: typeof KioskRoute
+  LoginRoute: typeof LoginRoute
   OperatorRoute: typeof OperatorRoute
+  PairRoute: typeof PairRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pair': {
+      id: '/pair'
+      path: '/pair'
+      fullPath: '/pair'
+      preLoaderRoute: typeof PairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/operator': {
       id: '/operator'
       path: '/operator'
       fullPath: '/operator'
       preLoaderRoute: typeof OperatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kiosk': {
@@ -386,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMenusRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/kioskEditor': {
+      id: '/app/kioskEditor'
+      path: '/kioskEditor'
+      fullPath: '/app/kioskEditor'
+      preLoaderRoute: typeof AppKioskEditorRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/employees': {
       id: '/app/employees'
       path: '/employees'
@@ -446,6 +505,7 @@ interface AppRouteChildren {
   AppCountersRoute: typeof AppCountersRoute
   AppDevicesRoute: typeof AppDevicesRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
+  AppKioskEditorRoute: typeof AppKioskEditorRoute
   AppMenusRoute: typeof AppMenusRoute
   AppOrdersRoute: typeof AppOrdersRoute
   AppPagesRoute: typeof AppPagesRoute
@@ -464,6 +524,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCountersRoute: AppCountersRoute,
   AppDevicesRoute: AppDevicesRoute,
   AppEmployeesRoute: AppEmployeesRoute,
+  AppKioskEditorRoute: AppKioskEditorRoute,
   AppMenusRoute: AppMenusRoute,
   AppOrdersRoute: AppOrdersRoute,
   AppPagesRoute: AppPagesRoute,
@@ -482,7 +543,9 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerRoute: CustomerRoute,
   DisplayRoute: DisplayRoute,
   KioskRoute: KioskRoute,
+  LoginRoute: LoginRoute,
   OperatorRoute: OperatorRoute,
+  PairRoute: PairRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
