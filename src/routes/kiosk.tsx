@@ -226,9 +226,9 @@ function KioskPage() {
           <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-900"}`}>
             <Printer className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-black">Connect USB printer</h1>
+          <h1 className="text-3xl font-black">Choose USB device</h1>
           <p className={`mt-3 text-sm leading-6 ${muted}`}>
-            Select the W80/thermal printer from the USB device picker once. After access is granted, tickets print directly without the Chrome or Edge print panel.
+            Select the W80/thermal printer from Chrome's USB device picker. The picker is opened with the broadest USB access Chrome allows.
           </p>
           <Button
             className="mt-6 h-14 w-full text-base font-bold"
@@ -236,10 +236,10 @@ function KioskPage() {
             disabled={printerConnecting}
           >
             <Printer className="mr-2 h-5 w-5" />
-            {printerConnecting ? "Connecting..." : "Connect USB printer"}
+            {printerConnecting ? "Connecting..." : "Show USB devices"}
           </Button>
           <p className={`mt-4 text-xs ${muted}`}>
-            If the printer does not appear here, Chrome cannot access that USB printer directly as a browser device.
+            If the printer does not appear here, Chrome or the operating system is not exposing it to websites through WebUSB.
           </p>
         </div>
       </div>

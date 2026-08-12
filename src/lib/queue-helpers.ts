@@ -219,15 +219,9 @@ export async function pairUsbPrinter(): Promise<boolean> {
     const usb = (navigator as any).usb;
     if (!usb) return false;
     _usbDevice = await usb.requestDevice({
-      filters: [
-        { classCode: 0x07 }, // USB printer class
-        { vendorId: 0x04b8 }, // Epson
-        { vendorId: 0x1a86 }, // CH340/CH341 USB serial adapters
-        { vendorId: 0x067b }, // Prolific USB serial adapters
-        { vendorId: 0x0483 }, // STMicro controllers used by some receipt printers
-        { vendorId: 0x1504 }, // common POS/receipt printer vendor id
-        { vendorId: 0x0fe6 }, // common POS/receipt printer vendor id
-      ],
+      // Show every USB device Chrome is willing to expose to WebUSB.
+      // Chrome may still hide protected classes and OS-only printer devices.
+      filters: [{}],
     });
     return true;
   } catch {
