@@ -45,6 +45,7 @@ function KioskPage() {
   const [printerReady, setPrinterReady] = useState(false);
   const [printerCheckDone, setPrinterCheckDone] = useState(false);
   const [printerConnecting, setPrinterConnecting] = useState(false);
+  const [browserPrintMode, setBrowserPrintMode] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // menu navigation stack: [] = root, [id] = inside that menu item
@@ -55,6 +56,7 @@ function KioskPage() {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
     const b = p.get("branch"); const d = p.get("device");
+    setBrowserPrintMode(p.get("browserPrint") === "1" || p.get("kioskPrinting") === "1");
     if (b) setBranchId(b);
     if (d) setDeviceId(d);
 
@@ -85,11 +87,16 @@ function KioskPage() {
   }, []);
 
   useEffect(() => {
+    if (browserPrintMode) {
+      setPrinterReady(true);
+      setPrinterCheckDone(true);
+      return;
+    }
     void hasDirectPrinterAccess().then((ready) => {
       setPrinterReady(ready);
       setPrinterCheckDone(true);
     });
-  }, []);
+  }, [browserPrintMode]);
 
   const connectPrinter = async () => {
     setPrinterConnecting(true);
@@ -174,7 +181,7 @@ function KioskPage() {
         estimatedWaitMins: estMins,
         branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
         lang,
-        silentOnly: true,
+        silentOnly: !browserPrintMode,
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to issue ticket"),
@@ -219,7 +226,7 @@ function KioskPage() {
     );
   }
 
-  if (printerCheckDone && !printerReady) {
+  if (!browserPrintMode && printerCheckDone && !printerReady) {
     return (
       <div className={`flex min-h-screen items-center justify-center px-6 ${bg}`}>
         <div className={`w-full max-w-md rounded-3xl p-8 text-center shadow-2xl ${isDark ? "bg-white/10 border border-white/10" : "bg-white border border-slate-200"}`}>
@@ -294,7 +301,7 @@ function KioskPage() {
               estimatedWaitMins: estMins,
               branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
               lang,
-              silentOnly: true,
+              silentOnly: !browserPrintMode,
             })}>
             <Printer className="h-4 w-4" /> {t("printTicket")}
           </Button>
