@@ -26,11 +26,14 @@ export const Route = createFileRoute("/app")({
   // Platform users (super admin) are redirected to /app/companies
   beforeLoad: () => {
     if (typeof window === "undefined") return;
+    const pathname = window.location.pathname;
     const user = getUserFromStorage();
     const token = localStorage.getItem("qms_access_token");
     const refresh = localStorage.getItem("qms_refresh_token");
     if (!token && !user && !refresh) throw redirect({ to: "/login" as any });
-    if (user?.type === "platform_user") throw redirect({ to: "/app/companies" as any });
+    if (user?.type === "platform_user" && pathname !== "/app/companies") {
+      throw redirect({ to: "/app/companies" as any });
+    }
     if (user?.type === "company_user" && !isCompanyAdminRole(user)) throw redirect({ to: "/operator" as any });
   },
   component: AppLayout,
