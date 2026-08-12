@@ -100,8 +100,7 @@ let _serialPort: unknown = null;
 
 /**
  * Try to print via Web Serial API (direct thermal printer, NO dialog).
- * Falls back to the iframe/window.print() method if Serial API is unavailable
- * or the user hasn't paired a printer yet.
+ * Does not fall back to window.print(); that opens Chrome/Edge print UI.
  *
  * HOW TO PAIR: On the kiosk, call `pairThermalPrinter()` once (e.g. from a
  * hidden admin button). The browser will show a one-time port picker.
@@ -232,9 +231,8 @@ function buildReceiptText(opts: PrintTicketOptions): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// iframe fallback — works on all browsers, triggers OS print dialog.
-// On dedicated kiosk hardware, launch Chrome with --kiosk-printing to suppress
-// the dialog: chrome --kiosk --kiosk-printing http://yourapp/kiosk?branch=...
+// Browser print fallback. Do not use from kiosk auto-printing because it opens
+// Chrome/Edge print UI.
 // ─────────────────────────────────────────────────────────────────────────────
 function printViaIframe(opts: PrintTicketOptions): void {
   if (typeof window === "undefined") return;
@@ -278,7 +276,7 @@ function shouldUseLocalBridge(opts: PrintTicketOptions): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public API — try serial first (silent), fall back to iframe
+// Public API — use silent-capable paths only.
 // ─────────────────────────────────────────────────────────────────────────────
 export function printTicketReceipt(opts: PrintTicketOptions): void;
 export function printTicketReceipt(
@@ -300,8 +298,7 @@ export function printTicketReceipt(
     : ticketNumberOrOpts;
 
   // A browser page cannot select printer "w80" or suppress Chrome/Edge print UI.
-  // We only use the local bridge when explicitly enabled; normal deployed kiosk
-  // pages go straight to browser printing with an 80mm receipt layout.
+  // Never call window.print() here; it opens the browser print panel.
   (async () => {
     if (shouldUseLocalBridge(opts)) {
       try {
@@ -322,7 +319,9 @@ export function printTicketReceipt(
 
     const used = await printViaSerial(opts).catch(() => false);
     if (used) return;
-    // Final fallback to iframe (browser print dialog)
-    printViaIframe(opts);
+
+    console.warn(
+      "[kiosk print] Silent printing is unavailable from this browser tab. Use Web Serial pairing, a local print bridge, or browser kiosk printing mode."
+    );
   })();
 }
