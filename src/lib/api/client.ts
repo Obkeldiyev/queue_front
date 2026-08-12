@@ -3,11 +3,24 @@ function getBaseUrl(): string {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL as string;
   }
-  // In production we expect nginx to proxy `/api` to the backend.
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api`;
+  }
   return "/api";
 }
 
 const BASE_URL = getBaseUrl();
+
+async function fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 // Tokens are only accessed client-side — never read at module level to avoid SSR mismatch
 function getStoredToken(key: string): string | null {
@@ -93,10 +106,18 @@ export async function apiRequest<T = unknown>(
       ...(options.headers as Record<string, string> | undefined),
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    return fetch(`${BASE_URL}${path}`, { ...options, headers });
+    return fetchWithTimeout(`${BASE_URL}${path}`, { ...options, headers });
   };
 
-  let res = await makeRequest(getAccessToken());
+  let res: Response;
+  try {
+    res = await makeRequest(getAccessToken());
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Backend request timed out. Check that the backend is running on port 2000.");
+    }
+    throw err;
+  }
 
   // Auto-refresh on 401
   if (res.status === 401) {

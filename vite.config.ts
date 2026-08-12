@@ -6,6 +6,9 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+const backendPort = process.env.BACKEND_PORT || process.env.APP_PORT || process.env.PORT || "9000";
+const backendHost = `127.0.0.1:${backendPort}`;
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -22,6 +25,19 @@ export default defineConfig({
         host: "xnavbat.polito.uz",
         protocol: "wss",
         clientPort: 8095,
+      },
+      proxy: {
+        // Local development proxy for the backend API.
+        "/api": {
+          target: `http://${backendHost}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, "/api/v1"),
+        },
+        "/ws": {
+          target: `ws://${backendHost}`,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
   },
