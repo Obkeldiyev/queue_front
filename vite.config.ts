@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 8080,
-    // Allow any forwarded hostname when proxying through nginx.
-    allowedHosts: "all",
+    // Allow Vite dev server to accept requests proxied for this hostname.
+    allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
   },
 });
