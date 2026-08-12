@@ -114,7 +114,7 @@ export async function apiRequest<T = unknown>(
     res = await makeRequest(getAccessToken());
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Backend request timed out. Check that the backend is running on port 2000.");
+      throw new Error("Backend request timed out. Check that the backend is reachable and that the API proxy is configured correctly.");
     }
     throw err;
   }
