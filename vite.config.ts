@@ -15,5 +15,8 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 8080,
+    // Allow Vite dev server to accept requests for this production hostname
+    // so you can proxy xnavbat.polito.uz -> this dev server during testing.
+    allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
   },
 });
