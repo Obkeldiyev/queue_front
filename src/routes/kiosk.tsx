@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { Ticket as TicketIcon, Clock, Hash, Printer, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
-import { printTicketReceipt, estimateWaitMinutes } from "@/lib/queue-helpers";
+import {
+  printTicketReceipt,
+  estimateWaitMinutes,
+  hasDirectPrinterAccess,
+  pairBrowserPrinter,
+} from "@/lib/queue-helpers";
 import { ClientOnly } from "@/components/ClientOnly";
 
 export const Route = createFileRoute("/kiosk")({
@@ -37,6 +42,9 @@ function KioskPage() {
   // issued ticket state
   const [issuedTicket, setIssuedTicket] = useState<Ticket | null>(null);
   const [countdown, setCountdown] = useState(6);
+  const [printerReady, setPrinterReady] = useState(false);
+  const [printerCheckDone, setPrinterCheckDone] = useState(false);
+  const [printerConnecting, setPrinterConnecting] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // menu navigation stack: [] = root, [id] = inside that menu item
@@ -75,6 +83,26 @@ function KioskPage() {
       } catch { /* ignore */ }
     })();
   }, []);
+
+  useEffect(() => {
+    void hasDirectPrinterAccess().then((ready) => {
+      setPrinterReady(ready);
+      setPrinterCheckDone(true);
+    });
+  }, []);
+
+  const connectPrinter = async () => {
+    setPrinterConnecting(true);
+    try {
+      const ok = await pairBrowserPrinter();
+      setPrinterReady(ok);
+      if (ok) toast.success("Printer connected");
+      else toast.error("Printer access was not granted");
+    } finally {
+      setPrinterConnecting(false);
+      setPrinterCheckDone(true);
+    }
+  };
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: branch } = useQuery({
@@ -146,6 +174,7 @@ function KioskPage() {
         estimatedWaitMins: estMins,
         branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
         lang,
+        silentOnly: true,
       });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to issue ticket"),
@@ -185,6 +214,33 @@ function KioskPage() {
           <code className="mt-3 block rounded-xl bg-white/10 px-4 py-3 text-sm text-cyan-300">
             /kiosk?branch=&lt;branch_id&gt;
           </code>
+        </div>
+      </div>
+    );
+  }
+
+  if (printerCheckDone && !printerReady) {
+    return (
+      <div className={`flex min-h-screen items-center justify-center px-6 ${bg}`}>
+        <div className={`w-full max-w-md rounded-3xl p-8 text-center shadow-2xl ${isDark ? "bg-white/10 border border-white/10" : "bg-white border border-slate-200"}`}>
+          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-900"}`}>
+            <Printer className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-black">Connect printer</h1>
+          <p className={`mt-3 text-sm leading-6 ${muted}`}>
+            Select the W80/thermal printer once. After access is granted, tickets print directly without the Chrome or Edge print panel.
+          </p>
+          <Button
+            className="mt-6 h-14 w-full text-base font-bold"
+            onClick={() => void connectPrinter()}
+            disabled={printerConnecting}
+          >
+            <Printer className="mr-2 h-5 w-5" />
+            {printerConnecting ? "Connecting..." : "Connect printer"}
+          </Button>
+          <p className={`mt-4 text-xs ${muted}`}>
+            If the printer does not appear here, Chrome cannot access it directly as a browser device.
+          </p>
         </div>
       </div>
     );
@@ -238,6 +294,7 @@ function KioskPage() {
               estimatedWaitMins: estMins,
               branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
               lang,
+              silentOnly: true,
             })}>
             <Printer className="h-4 w-4" /> {t("printTicket")}
           </Button>

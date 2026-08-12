@@ -155,37 +155,68 @@ function DisplayView() {
     : "Qubit QMS";
   const visibleWaiting = waiting.slice(0, 8);
 
-  // Clean public display layout: header, current call, and next tickets.
+  const servingCards = serving.slice(0, 4);
+
+  // High-contrast public display layout.
   return (
-    <div
-      className="h-screen w-screen overflow-hidden bg-[#f6f8fb] text-[#0f172a]"
-      style={{ fontFamily: "Inter, 'Segoe UI', Arial, Helvetica, sans-serif" }}
-    >
-      <div className="flex h-full flex-col px-10 py-8">
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-6">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#0284c7] text-3xl font-black text-white shadow-sm">
-              Q
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-3xl font-black tracking-tight">{branchName}</div>
-              <div className="mt-1 text-base font-medium text-slate-500">Qubit QMS</div>
+    <div style={{
+      height: "100vh",
+      width: "100vw",
+      overflow: "hidden",
+      background: "#07111f",
+      color: "#f8fafc",
+      fontFamily: "Inter, Segoe UI, Arial, sans-serif",
+    }}>
+      <div style={{ display: "flex", height: "100%", flexDirection: "column", padding: 32, gap: 24 }}>
+        <header style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "18px 24px",
+          borderRadius: 28,
+          background: "#0d1b2f",
+          border: "1px solid rgba(148,163,184,.18)",
+          boxShadow: "0 18px 60px rgba(0,0,0,.22)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: 22,
+              display: "grid",
+              placeItems: "center",
+              background: "#0ea5e9",
+              color: "white",
+              fontSize: 34,
+              fontWeight: 900,
+              flexShrink: 0,
+            }}>Q</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {branchName}
+              </div>
+              <div style={{ marginTop: 8, color: "#93a4b8", fontSize: 18, fontWeight: 700 }}>Qubit QMS</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-right">
-            <div>
-              <div className="text-5xl font-black tabular-nums tracking-tight">{timeStr}</div>
-              <div className="mt-1 text-sm font-medium text-slate-500">{dateStr}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 58, lineHeight: 1, fontWeight: 950, fontVariantNumeric: "tabular-nums" }}>{timeStr}</div>
+              <div style={{ marginTop: 8, color: "#93a4b8", fontSize: 16, fontWeight: 700 }}>{dateStr}</div>
             </div>
-            <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+            <div style={{ display: "flex", gap: 6, padding: 6, borderRadius: 999, background: "rgba(255,255,255,.06)" }}>
               {LANGS.map((l) => (
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
-                    lang === l.code ? "bg-[#0284c7] text-white" : "text-slate-500"
-                  }`}
+                  style={{
+                    border: 0,
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    background: lang === l.code ? "#e0f2fe" : "transparent",
+                    color: lang === l.code ? "#075985" : "#94a3b8",
+                    fontWeight: 900,
+                  }}
                 >
                   {l.code.toUpperCase()}
                 </button>
@@ -194,69 +225,83 @@ function DisplayView() {
           </div>
         </header>
 
-        <main className="grid min-h-0 flex-1 grid-cols-[1.2fr_0.8fr] gap-8 py-8">
-          <section className="flex min-h-0 flex-col rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-black uppercase tracking-[0.22em] text-[#0284c7]">{SERVING_LBL}</div>
-              <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-500">
-                {W}
-              </div>
+        <main style={{ display: "grid", gridTemplateColumns: "1.3fr .7fr", gap: 24, minHeight: 0, flex: 1 }}>
+          <section style={{
+            minHeight: 0,
+            borderRadius: 34,
+            background: "linear-gradient(180deg,#f8fafc 0%,#e0f2fe 100%)",
+            color: "#06111f",
+            padding: 36,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 24px 80px rgba(0,0,0,.3)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: ".12em", color: "#0369a1" }}>{SERVING_LBL}</div>
+              <div style={{ borderRadius: 999, background: "#dbeafe", padding: "12px 18px", color: "#075985", fontSize: 18, fontWeight: 950 }}>{W}</div>
             </div>
 
-            {latest ? (
-              <div className="grid min-h-0 flex-1 place-items-center text-center">
+            <div style={{ flex: 1, display: "grid", placeItems: "center", textAlign: "center", minHeight: 0 }}>
+              {latest ? (
                 <div>
-                  <div className="text-[15vw] font-black leading-none tracking-tight text-slate-950">
+                  <div style={{ fontSize: "clamp(150px, 19vw, 330px)", lineHeight: .86, fontWeight: 950, letterSpacing: "-.04em" }}>
                     {latest.ticket_number}
                   </div>
-                  <div className="mt-8 inline-flex items-center gap-5 rounded-3xl bg-[#e0f2fe] px-10 py-6 text-[#075985]">
-                    <span className="text-3xl font-black uppercase">{GO_LBL}</span>
-                    <span className="text-7xl font-black leading-none">{getWindow(latest)}</span>
+                  <div style={{
+                    marginTop: 36,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 28,
+                    borderRadius: 30,
+                    background: "#075985",
+                    color: "white",
+                    padding: "22px 34px",
+                  }}>
+                    <span style={{ fontSize: 32, fontWeight: 950, textTransform: "uppercase" }}>{GO_LBL}</span>
+                    <span style={{ fontSize: 82, lineHeight: 1, fontWeight: 950 }}>{getWindow(latest)}</span>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="grid flex-1 place-items-center text-center text-slate-400">
-                <div>
-                  <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full bg-slate-100 text-4xl font-black text-slate-300">
-                    Q
-                  </div>
-                  <div className="text-3xl font-bold">{EMPTY_LBL}</div>
+              ) : (
+                <div style={{ color: "#64748b" }}>
+                  <div style={{ margin: "0 auto 22px", width: 84, height: 84, borderRadius: 24, display: "grid", placeItems: "center", background: "#e2e8f0", fontSize: 42, fontWeight: 950 }}>Q</div>
+                  <div style={{ fontSize: 38, fontWeight: 950 }}>{EMPTY_LBL}</div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </section>
 
-          <section className="flex min-h-0 flex-col rounded-[28px] border border-slate-200 bg-[#0f172a] p-6 text-white shadow-sm">
-            <div className="mb-5 flex items-end justify-between border-b border-white/10 pb-4">
+          <section style={{
+            minHeight: 0,
+            borderRadius: 34,
+            background: "#0d1b2f",
+            border: "1px solid rgba(148,163,184,.18)",
+            padding: 28,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 24px 80px rgba(0,0,0,.22)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", paddingBottom: 20, borderBottom: "1px solid rgba(148,163,184,.18)" }}>
               <div>
-                <div className="text-sm font-black uppercase tracking-[0.22em] text-sky-300">{NEXT_LBL}</div>
-                <div className="mt-1 text-3xl font-black">{WAITING_LBL}</div>
+                <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: ".16em", color: "#38bdf8" }}>{NEXT_LBL}</div>
+                <div style={{ marginTop: 6, fontSize: 40, fontWeight: 950 }}>{WAITING_LBL}</div>
               </div>
-              <div className="text-4xl font-black tabular-nums text-white/50">{visibleWaiting.length}</div>
+              <div style={{ color: "#64748b", fontSize: 52, lineHeight: 1, fontWeight: 950 }}>{visibleWaiting.length}</div>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
+            <div style={{ flex: 1, overflow: "hidden", paddingTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
               {visibleWaiting.length > 0 ? visibleWaiting.map((ticket, index) => (
-                <div
-                  key={ticket.id}
-                  className="flex items-center justify-between rounded-2xl bg-white/[0.07] px-5 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-sm font-black text-white/60">
-                      {index + 1}
-                    </div>
-                    <div className="text-4xl font-black tracking-wide">{ticket.ticket_number}</div>
-                  </div>
-                  <div className="max-w-48 truncate text-right text-sm font-semibold text-white/50">
+                <div key={ticket.id} style={{ display: "grid", gridTemplateColumns: "48px 1fr auto", alignItems: "center", gap: 14, borderRadius: 22, padding: "16px 18px", background: "rgba(255,255,255,.065)" }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 999, display: "grid", placeItems: "center", background: "rgba(14,165,233,.16)", color: "#7dd3fc", fontWeight: 950 }}>{index + 1}</div>
+                  <div style={{ fontSize: 42, lineHeight: 1, fontWeight: 950, letterSpacing: ".03em" }}>{ticket.ticket_number}</div>
+                  <div style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#94a3b8", fontWeight: 800 }}>
                     {ticket.queue_group ? loc(ticket.queue_group as unknown as Record<string, unknown>, "name", lang) || ticket.queue_group.name_uz : ""}
                   </div>
                 </div>
               )) : (
-                <div className="grid h-full place-items-center text-center text-white/35">
+                <div style={{ flex: 1, display: "grid", placeItems: "center", color: "#64748b", textAlign: "center" }}>
                   <div>
-                    <div className="text-6xl font-black">0</div>
-                    <div className="mt-2 text-lg font-semibold">{WAITING_LBL}</div>
+                    <div style={{ fontSize: 76, lineHeight: 1, fontWeight: 950 }}>0</div>
+                    <div style={{ marginTop: 8, fontSize: 22, fontWeight: 900 }}>{WAITING_LBL}</div>
                   </div>
                 </div>
               )}
@@ -265,13 +310,11 @@ function DisplayView() {
         </main>
 
         {announced && (
-          <div className="pointer-events-none fixed inset-0 grid place-items-center bg-[#0f172a]/80 backdrop-blur-sm">
-            <div className="rounded-[36px] bg-white px-16 py-12 text-center shadow-2xl">
-              <div className="text-lg font-black uppercase tracking-[0.22em] text-[#0284c7]">{SERVING_LBL}</div>
-              <div className="mt-4 text-[12rem] font-black leading-none text-slate-950">{announced.ticket_number}</div>
-              <div className="mt-6 text-5xl font-black text-slate-700">
-                {W} {announced.counter_number ?? announced.counter_name}
-              </div>
+          <div style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", background: "rgba(2,6,23,.86)", backdropFilter: "blur(8px)" }}>
+            <div style={{ borderRadius: 44, background: "#f8fafc", color: "#06111f", padding: "56px 76px", textAlign: "center", boxShadow: "0 30px 120px rgba(0,0,0,.45)" }}>
+              <div style={{ fontSize: 20, fontWeight: 950, letterSpacing: ".16em", color: "#0284c7" }}>{SERVING_LBL}</div>
+              <div style={{ marginTop: 18, fontSize: 190, lineHeight: .9, fontWeight: 950 }}>{announced.ticket_number}</div>
+              <div style={{ marginTop: 28, fontSize: 62, fontWeight: 950, color: "#334155" }}>{W} {announced.counter_number ?? announced.counter_name}</div>
             </div>
           </div>
         )}

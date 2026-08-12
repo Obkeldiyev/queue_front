@@ -39,6 +39,7 @@ export interface PrintTicketOptions {
   branchName?: string;
   lang?: "uz" | "ru" | "en";
   useLocalBridge?: boolean;
+  silentOnly?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,6 +152,22 @@ export async function pairThermalPrinter(): Promise<boolean> {
   }
 }
 
+export async function hasDirectPrinterAccess(): Promise<boolean> {
+  try {
+    const serialPorts = "serial" in navigator
+      ? await (navigator as any).serial.getPorts() as unknown[]
+      : [];
+    if (serialPorts.length > 0) return true;
+
+    const usbDevices = (navigator as any).usb
+      ? await (navigator as any).usb.getDevices() as unknown[]
+      : [];
+    return usbDevices.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function findUsbOutEndpoint(device: any): Promise<{ interfaceNumber: number; endpointNumber: number } | null> {
   const configuration = device.configuration ?? device.configurations?.[0];
   if (!configuration) return null;
@@ -206,11 +223,27 @@ export async function pairUsbPrinter(): Promise<boolean> {
   try {
     const usb = (navigator as any).usb;
     if (!usb) return false;
-    _usbDevice = await usb.requestDevice({ filters: [] });
+    _usbDevice = await usb.requestDevice({
+      filters: [
+        { classCode: 0x07 }, // USB printer class
+        { vendorId: 0x04b8 }, // Epson
+        { vendorId: 0x1a86 }, // CH340/CH341 USB serial adapters
+        { vendorId: 0x067b }, // Prolific USB serial adapters
+        { vendorId: 0x0483 }, // STMicro controllers used by some receipt printers
+        { vendorId: 0x1504 }, // common POS/receipt printer vendor id
+        { vendorId: 0x0fe6 }, // common POS/receipt printer vendor id
+      ],
+    });
     return true;
   } catch {
     return false;
   }
+}
+
+export async function pairBrowserPrinter(): Promise<boolean> {
+  const usbOk = await pairUsbPrinter();
+  if (usbOk) return true;
+  return pairThermalPrinter();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -385,6 +418,11 @@ export function printTicketReceipt(
 
     const usedUsb = await printViaUsb(opts).catch(() => false);
     if (usedUsb) return;
+
+    if (opts.silentOnly) {
+      console.warn("[kiosk print] No direct printer permission is available.");
+      return;
+    }
 
     printViaIframe(opts);
   })();
