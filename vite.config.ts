@@ -12,10 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  server: {
-    host: "0.0.0.0",
-    port: 8080,
-    // Allow Vite dev server to accept requests proxied for this hostname.
-    allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
+  vite: {
+    server: {
+      host: "0.0.0.0",
+      port: 8080,
+      // Allow Vite dev server to accept requests proxied for this hostname.
+      allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
+    },
   },
 });
