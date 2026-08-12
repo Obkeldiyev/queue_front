@@ -18,6 +18,11 @@ export default defineConfig({
       port: 8080,
       // Allow Vite dev server to accept requests proxied for this hostname.
       allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
+      hmr: {
+        host: "xnavbat.polito.uz",
+        protocol: "wss",
+        clientPort: 8095,
+      },
     },
   },
 });

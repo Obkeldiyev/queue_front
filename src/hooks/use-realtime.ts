@@ -1,7 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:9000/ws";
+const defaultWsUrl = typeof window !== "undefined"
+  ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`
+  : "ws://localhost:9000/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || defaultWsUrl;
 
 type WsEventType =
   | "ticket:issued"
