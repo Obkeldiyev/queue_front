@@ -72,11 +72,44 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function WrongProtocolPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-xl rounded-3xl border border-border bg-card p-8 text-center shadow-lg">
+        <h1 className="text-2xl font-semibold">Open the app from a browser</h1>
+        <p className="mt-4 text-sm text-muted-foreground">
+          This application must run from a web server URL, not from VS Code file preview.
+        </p>
+        <p className="mt-4 text-sm">
+          Start the frontend in <code>queue_front</code> with <code>npm run dev</code> and open:
+        </p>
+        <p className="mt-2 font-semibold">http://localhost:8080</p>
+        <p className="mt-4 text-xs text-muted-foreground">
+          If you see a <code>vscode-file://...</code> or <code>vscode-app://...</code> address, close that preview and use a normal browser tab.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  // Wait for stores to rehydrate + auth to validate before rendering routes.
-  // This prevents route guards from firing with stale null state on refresh.
   const [ready, setReady] = useState(false);
+  const [badProtocol, setBadProtocol] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const { protocol, href } = window.location;
+    if (
+      protocol === "file:" ||
+      protocol === "vscode-file:" ||
+      protocol === "vscode-app:" ||
+      href.startsWith("vscode-file://") ||
+      href.startsWith("vscode-app://")
+    ) {
+      setBadProtocol(true);
+    }
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -98,6 +131,15 @@ function RootComponent() {
 
     void init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (badProtocol) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <WrongProtocolPage />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    );
+  }
 
   if (!ready) {
     return (
