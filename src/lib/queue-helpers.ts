@@ -154,11 +154,6 @@ export async function pairThermalPrinter(): Promise<boolean> {
 
 export async function hasDirectPrinterAccess(): Promise<boolean> {
   try {
-    const serialPorts = "serial" in navigator
-      ? await (navigator as any).serial.getPorts() as unknown[]
-      : [];
-    if (serialPorts.length > 0) return true;
-
     const usbDevices = (navigator as any).usb
       ? await (navigator as any).usb.getDevices() as unknown[]
       : [];
@@ -241,9 +236,7 @@ export async function pairUsbPrinter(): Promise<boolean> {
 }
 
 export async function pairBrowserPrinter(): Promise<boolean> {
-  const usbOk = await pairUsbPrinter();
-  if (usbOk) return true;
-  return pairThermalPrinter();
+  return pairUsbPrinter();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -413,11 +406,16 @@ export function printTicketReceipt(
       }
     }
 
-    const used = await printViaSerial(opts).catch(() => false);
-    if (used) return;
-
     const usedUsb = await printViaUsb(opts).catch(() => false);
     if (usedUsb) return;
+
+    const allowSerialFallback =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("serialPrinter") === "1";
+    if (allowSerialFallback) {
+      const used = await printViaSerial(opts).catch(() => false);
+      if (used) return;
+    }
 
     if (opts.silentOnly) {
       console.warn("[kiosk print] No direct printer permission is available.");

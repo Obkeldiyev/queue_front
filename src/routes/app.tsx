@@ -61,7 +61,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/app/kioskEditor",   label: "settings",      icon: Settings, extraLabel: "Kiosk Editor" },
 ];
 
-function roleBadge(user: ReturnType<typeof getUserFromStorage>, t: ReturnType<typeof useLang>["t"]): string {
+function roleBadge(user: ReturnType<typeof getUserFromStorage>, t: (key: any) => string): string {
   if (!user) return "";
   if (user.type === "platform_user") return t("superAdminRole");
   const roleTypes = user.roleTypes ?? [];
