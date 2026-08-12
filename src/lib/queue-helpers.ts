@@ -97,6 +97,7 @@ function buildEscPosReceipt(opts: PrintTicketOptions): Uint8Array {
 
 // Cache the serial port between prints so we don't ask for permission every time
 let _serialPort: unknown = null;
+let _usbDevice: unknown = null;
 
 /**
  * Try to print via Web Serial API (direct thermal printer, NO dialog).
@@ -144,6 +145,68 @@ export async function pairThermalPrinter(): Promise<boolean> {
     await (port as any).open({ baudRate: 9600 });
     _serialPort = port;
     try { await (port as any).close(); } catch { /* ignore */ }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function findUsbOutEndpoint(device: any): Promise<{ interfaceNumber: number; endpointNumber: number } | null> {
+  const configuration = device.configuration ?? device.configurations?.[0];
+  if (!configuration) return null;
+
+  for (const iface of configuration.interfaces ?? []) {
+    for (const alternate of iface.alternates ?? []) {
+      const endpoint = alternate.endpoints?.find((e: any) => e.direction === "out" && e.type === "bulk")
+        ?? alternate.endpoints?.find((e: any) => e.direction === "out");
+      if (!endpoint) continue;
+      if (device.configuration?.configurationValue !== configuration.configurationValue) {
+        await device.selectConfiguration(configuration.configurationValue);
+      }
+      await device.claimInterface(iface.interfaceNumber);
+      if (alternate.alternateSetting) {
+        await device.selectAlternateInterface(iface.interfaceNumber, alternate.alternateSetting);
+      }
+      return { interfaceNumber: iface.interfaceNumber, endpointNumber: endpoint.endpointNumber };
+    }
+  }
+
+  return null;
+}
+
+async function printViaUsb(opts: PrintTicketOptions): Promise<boolean> {
+  try {
+    const usb = (navigator as any).usb;
+    if (!usb) return false;
+
+    const devices = await usb.getDevices();
+    let device = _usbDevice as any;
+    if (!device && devices.length > 0) device = devices[0];
+    if (!device) return false;
+
+    _usbDevice = device;
+    await device.open();
+    const endpoint = await findUsbOutEndpoint(device);
+    if (!endpoint) {
+      try { await device.close(); } catch { /* ignore */ }
+      return false;
+    }
+
+    const bytes = buildEscPosReceipt(opts);
+    await device.transferOut(endpoint.endpointNumber, bytes);
+    try { await device.releaseInterface(endpoint.interfaceNumber); } catch { /* ignore */ }
+    try { await device.close(); } catch { /* ignore */ }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function pairUsbPrinter(): Promise<boolean> {
+  try {
+    const usb = (navigator as any).usb;
+    if (!usb) return false;
+    _usbDevice = await usb.requestDevice({ filters: [] });
     return true;
   } catch {
     return false;
@@ -231,8 +294,8 @@ function buildReceiptText(opts: PrintTicketOptions): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Browser print fallback. Do not use from kiosk auto-printing because it opens
-// Chrome/Edge print UI.
+// Browser print fallback. This is the only path Chrome/Edge expose for normal
+// installed printers such as "w80", and it opens the browser print UI.
 // ─────────────────────────────────────────────────────────────────────────────
 function printViaIframe(opts: PrintTicketOptions): void {
   if (typeof window === "undefined") return;
@@ -276,7 +339,7 @@ function shouldUseLocalBridge(opts: PrintTicketOptions): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public API — use silent-capable paths only.
+// Public API — direct printer APIs first, browser print fallback last.
 // ─────────────────────────────────────────────────────────────────────────────
 export function printTicketReceipt(opts: PrintTicketOptions): void;
 export function printTicketReceipt(
@@ -297,8 +360,8 @@ export function printTicketReceipt(
     ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
     : ticketNumberOrOpts;
 
-  // A browser page cannot select printer "w80" or suppress Chrome/Edge print UI.
-  // Never call window.print() here; it opens the browser print panel.
+  // A browser page cannot select printer "w80" from JavaScript. Try every
+  // browser-accessible direct path first, then use browser printing.
   (async () => {
     if (shouldUseLocalBridge(opts)) {
       try {
@@ -320,8 +383,9 @@ export function printTicketReceipt(
     const used = await printViaSerial(opts).catch(() => false);
     if (used) return;
 
-    console.warn(
-      "[kiosk print] Silent printing is unavailable from this browser tab. Use Web Serial pairing, a local print bridge, or browser kiosk printing mode."
-    );
+    const usedUsb = await printViaUsb(opts).catch(() => false);
+    if (usedUsb) return;
+
+    printViaIframe(opts);
   })();
 }
