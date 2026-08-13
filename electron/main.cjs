@@ -203,14 +203,14 @@ ipcMain.handle("qubit:print-receipt", async (event, html) => {
           printBackground: true,
           deviceName: found ? config.printerName : undefined,
           margins: { marginType: "none" },
-          pageSize: { width: 80000, height: 200000 },
+          pageSize: { width: 100000, height: 200000 },
         });
       } catch (err) {
         console.warn('[kiosk print] primary print failed, retrying with default printer:', err && err.message);
-        await doPrint({ silent: true, printBackground: true, margins: { marginType: "none" }, pageSize: { width: 80000, height: 200000 } });
+        await doPrint({ silent: true, printBackground: true, margins: { marginType: "none" }, pageSize: { width: 100000, height: 200000 } });
       }
     } else {
-      await doPrint({ silent: true, printBackground: true, margins: { marginType: "none" }, pageSize: { width: 80000, height: 200000 } });
+      await doPrint({ silent: true, printBackground: true, margins: { marginType: "none" }, pageSize: { width: 100000, height: 200000 } });
     }
   } finally {
     try { printWindow.close(); } catch {}

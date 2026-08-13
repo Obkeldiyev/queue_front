@@ -259,9 +259,9 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
 return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:80mm;min-height:1px;font-family:'Courier New',monospace;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:3mm 4mm 5mm}
-.wrap{width:72mm;border:1.5px dashed #444;padding:3mm;border-radius:2px}
+html,body{width:100mm;min-height:1px;font-family:'Courier New',monospace;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:3mm 4mm 5mm;display:flex;justify-content:center}
+.wrap{width:90mm;border:1.5px dashed #444;padding:3mm;border-radius:2px}
 .org{text-align:center;font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;word-break:break-word}
 .ttl{text-align:center;font-size:9px;color:#555;margin-bottom:5px}
 .hr{border-top:1px dashed #aaa;margin:5px 0}
@@ -269,10 +269,10 @@ body{padding:3mm 4mm 5mm}
 .winbox{border:2px solid #000;padding:5px 8px;text-align:center;margin:6px 0;font-size:13px;font-weight:bold;border-radius:2px}
 .wlbl{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#555}
 .row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0}
-.lbl{color:#555}.val{font-weight:bold;text-align:right;max-width:42mm;word-break:break-word}
+.lbl{color:#555}.val{font-weight:bold;text-align:right;max-width:50mm;word-break:break-word}
 .footer{font-size:8px;color:#999;text-align:center;margin-top:8px}
-@page{size:80mm auto;margin:0}
-@media print{html,body{width:80mm}.wrap{box-shadow:none}}
+@page{size:100mm auto;margin:0}
+@media print{html,body{width:100mm}.wrap{box-shadow:none}}
 </style></head><body>
 <div class="wrap">
 ${branchName ? `<div class="org">${branchName}</div>` : ""}
