@@ -52,21 +52,32 @@ function isKioskDevice(type: string) {
   return type.includes("KIOSK");
 }
 
-function downloadKioskConfig(url: string, deviceId: string) {
-  const config = {
-    kioskUrl: url,
-    printerName: "w80",
-    fullscreen: true,
-  };
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `kiosk-config-${deviceId.slice(0, 8)}.json`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(link.href);
-  toast.success("Kiosk config downloaded");
+async function downloadKioskConfig(url: string, deviceId: string) {
+  try {
+    const body = { deviceId, kioskUrl: url, printerName: "w80", fullscreen: true };
+    const resp = await fetch(`/api/v1/kiosk/build`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const contentType = resp.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const j = await resp.json().catch(() => ({}));
+      toast.error(j.message || "Failed to build kiosk");
+      return;
+    }
+    if (!contentType.includes("zip") && !contentType.includes("application/octet-stream") && !contentType.includes("application/zip")) {
+      const text = await resp.text();
+      try { const j = JSON.parse(text); toast.error(j.message || "Failed to build kiosk"); return; } catch { /* fallthrough */ }
+    }
+    const blob = await resp.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `qubit-kiosk-${deviceId.slice(0, 8)}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    toast.success("Kiosk ZIP downloaded");
+  } catch (e) {
+    toast.error((e as Error).message || "Failed to download kiosk");
+  }
 }
 
 function Devices() {
