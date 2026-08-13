@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { Plus, Trash2, Cpu, Wifi, WifiOff, Copy, ExternalLink, QrCode, KeyRound, Download } from "lucide-react";
-import JSZip from "jszip";
 import { toast } from "sonner";
 import { buildDeviceLink } from "@/lib/queue-helpers";
 
@@ -83,6 +82,9 @@ async function downloadKioskConfig(url: string, deviceId: string) {
 
 async function promptUploadAndZip(url: string, deviceId: string) {
   try {
+    // load JSZip dynamically to avoid SSR trying to import it
+    const { default: JSZip } = await import("jszip");
+
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.accept = ".exe";
