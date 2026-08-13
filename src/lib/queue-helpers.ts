@@ -259,74 +259,74 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   const timeStr = now.toLocaleTimeString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
 
 return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=640"/>
+<meta name="viewport" content="width=302"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{
-  width:640px;
+  width:302px;
   background:#fff;
   color:#000;
   font-family:'Courier New',Courier,monospace;
   -webkit-print-color-adjust:exact;
   print-color-adjust:exact;
 }
-body{padding:24px 28px 32px}
+body{padding:10px 12px 14px}
 
 .org{
-  font-size:26px;
+  font-size:12px;
   font-weight:900;
-  letter-spacing:2px;
+  letter-spacing:1px;
   text-transform:uppercase;
   text-align:center;
-  margin-bottom:4px;
+  margin-bottom:2px;
   word-break:break-word;
   color:#000;
 }
 .title{
-  font-size:15px;
+  font-size:7px;
   font-weight:700;
   text-align:center;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:16px;
-}
-.hr-solid{border:none;border-top:2.5px solid #000;margin:14px 0}
-.hr-dash{border:none;border-top:2px dashed #000;margin:14px 0}
-.pos-label{
-  font-size:16px;
-  font-weight:700;
-  text-align:center;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:6px;
-}
-.ticket-num{
-  font-size:120px;
-  font-weight:900;
-  text-align:center;
-  letter-spacing:6px;
-  line-height:1;
-  color:#000;
-  margin:10px 0 16px;
-}
-.box{
-  border:3px solid #000;
-  padding:10px 14px;
-  margin:10px 0;
-  text-align:center;
-}
-.box-lbl{
-  font-size:13px;
-  font-weight:700;
   letter-spacing:2px;
   text-transform:uppercase;
   color:#000;
-  margin-bottom:5px;
+  margin-bottom:7px;
+}
+.hr-solid{border:none;border-top:1.5px solid #000;margin:6px 0}
+.hr-dash{border:none;border-top:1px dashed #000;margin:6px 0}
+.pos-label{
+  font-size:7px;
+  font-weight:700;
+  text-align:center;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:3px;
+}
+.ticket-num{
+  font-size:56px;
+  font-weight:900;
+  text-align:center;
+  letter-spacing:3px;
+  line-height:1;
+  color:#000;
+  margin:4px 0 7px;
+}
+.box{
+  border:1.5px solid #000;
+  padding:4px 6px;
+  margin:4px 0;
+  text-align:center;
+}
+.box-lbl{
+  font-size:6px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:2px;
 }
 .box-val{
-  font-size:24px;
+  font-size:11px;
   font-weight:900;
   color:#000;
   word-break:break-word;
@@ -335,40 +335,40 @@ body{padding:24px 28px 32px}
   display:flex;
   justify-content:space-between;
   align-items:center;
-  font-size:17px;
+  font-size:8px;
   font-weight:700;
-  padding:9px 0;
-  border-bottom:1.5px solid #000;
+  padding:4px 0;
+  border-bottom:1px solid #000;
   color:#000;
 }
 .info-row:last-child{border-bottom:none}
-.info-lbl{text-transform:uppercase;letter-spacing:1px;color:#000;font-weight:700}
+.info-lbl{text-transform:uppercase;letter-spacing:0.5px;color:#000;font-weight:700}
 .info-val{font-weight:900;text-align:right;color:#000}
 .thanks{
   text-align:center;
-  font-size:18px;
+  font-size:8px;
   font-weight:900;
   color:#000;
-  padding:14px 0 6px;
+  padding:6px 0 3px;
 }
 .brand{
   text-align:center;
-  font-size:14px;
+  font-size:7px;
   font-weight:700;
   color:#000;
-  letter-spacing:2px;
-  margin-top:5px;
+  letter-spacing:1px;
+  margin-top:2px;
 }
 .datetime{
   text-align:center;
-  font-size:14px;
+  font-size:7px;
   font-weight:700;
   color:#000;
-  margin-top:8px;
-  letter-spacing:1px;
+  margin-top:4px;
+  letter-spacing:0.5px;
 }
 @page{size:80mm auto;margin:0}
-@media print{html,body{width:640px}}
+@media print{html,body{width:302px}}
 </style></head><body>
 
 <div class="org">${branchName || "Qubit QMS"}</div>
