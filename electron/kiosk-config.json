@@ -1,5 +1,5 @@
 {
-  "kioskUrl": "https://xnavbat.polito.uz/kiosk?branch=bd59ca71-098f-4815-83f2-9b7e9f318ce8&device=5bb9ecc0-5f0d-4a86-9234-372c94f1bc6e",
+  "kioskUrl": "https://xnavbat.polito.uz:8095/kiosk?branch=bd59ca71-098f-4815-83f2-9b7e9f318ce8&device=5bb9ecc0-5f0d-4a86-9234-372c94f1bc6e",
   "printerName": "w80",
   "fullscreen": true
 }
