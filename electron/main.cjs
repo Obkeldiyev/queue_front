@@ -82,6 +82,56 @@ function createWindow() {
   });
 
   win.loadURL(config.kioskUrl);
+
+  // If configured with backend API + deviceId, fetch device settings and inject into page localStorage.
+  if (config.apiUrl && config.deviceId) {
+    (async () => {
+      try {
+        const _fetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : require('node-fetch');
+        const url = `${config.apiUrl.replace(/\/\/$/, '')}/api/v1/devices/${config.deviceId}`;
+        const headers = {};
+        if (config.apiToken) headers.Authorization = `Bearer ${config.apiToken}`;
+        const res = await _fetch(url, { headers });
+        if (!res.ok) throw new Error('Failed to fetch device settings');
+        const body = await res.json();
+        const settings = body?.data?.settings ?? body?.data ?? {};
+        // Write paired_device_<id> into localStorage and reload page so kiosk app picks up settings
+        const script = `localStorage.setItem('paired_device_' + ${JSON.stringify(config.deviceId)}, JSON.stringify({ device: ${JSON.stringify(config.deviceId)}, settings: ${JSON.stringify(settings)} }));`;
+        try { await win.webContents.executeJavaScript(script); } catch (e) { /* ignore */ }
+      } catch (e) {
+        console.warn('[kiosk] could not fetch device settings:', e && e.message);
+      }
+    })();
+  }
+
+  // Poll device settings periodically to detect admin changes and update kiosk view
+  if (config.apiUrl && config.deviceId) {
+    const pollInterval = (config.pollIntervalSeconds || 60) * 1000;
+    let lastSettingsHash = null;
+    setInterval(async () => {
+      try {
+        const _fetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : require('node-fetch');
+        const url = `${config.apiUrl.replace(/\/\/$/, '')}/api/v1/devices/${config.deviceId}`;
+        const headers = {};
+        if (config.apiToken) headers.Authorization = `Bearer ${config.apiToken}`;
+        const res = await _fetch(url, { headers });
+        if (!res.ok) return;
+        const body = await res.json();
+        const settingsObj = body?.data?.settings ?? body?.data ?? {};
+        const settings = JSON.stringify(settingsObj);
+        const hash = require('crypto').createHash('sha1').update(settings).digest('hex');
+        if (lastSettingsHash && hash !== lastSettingsHash) {
+          // update localStorage and reload
+          const script = `localStorage.setItem('paired_device_' + ${JSON.stringify(config.deviceId)}, JSON.stringify({ device: ${JSON.stringify(config.deviceId)}, settings: ${JSON.stringify(settingsObj)} }));`;
+          try { await win.webContents.executeJavaScript(script); } catch (e) { /* ignore */ }
+          try { win.reload(); } catch (e) { /* ignore */ }
+        }
+        lastSettingsHash = hash;
+      } catch (e) {
+        /* ignore polling errors */
+      }
+    }, pollInterval);
+  }
 }
 
 ipcMain.handle("qubit:get-printers", async (event) => {
