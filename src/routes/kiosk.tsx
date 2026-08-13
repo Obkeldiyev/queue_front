@@ -77,7 +77,19 @@ function KioskPage() {
         }
       } catch { /* ignore */ }
     })();
-  }, []);
+
+    // Listen for settings pushed by the Electron main process (device polling).
+    // This lets the admin change theme/settings without needing a full page reload.
+    const onSettingsChanged = (e: Event) => {
+      const { settings } = (e as CustomEvent<{ deviceId: string; settings: Record<string, unknown> }>).detail;
+      if (settings?.theme) setKioskTheme(settings.theme as "dark" | "light");
+      // Invalidate menus and queues so any content changes appear immediately
+      void qc.invalidateQueries({ queryKey: ["menus-kiosk"] });
+      void qc.invalidateQueries({ queryKey: ["queues-kiosk"] });
+    };
+    window.addEventListener("qubit:settings-changed", onSettingsChanged);
+    return () => window.removeEventListener("qubit:settings-changed", onSettingsChanged);
+  }, [qc]);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: branch } = useQuery({

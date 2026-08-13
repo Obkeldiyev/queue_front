@@ -127,10 +127,13 @@ function createWindow() {
         const settings = JSON.stringify(settingsObj);
         const hash = require('crypto').createHash('sha1').update(settings).digest('hex');
         if (lastSettingsHash && hash !== lastSettingsHash) {
-          // update localStorage and reload
-          const script = `localStorage.setItem('paired_device_' + ${JSON.stringify(config.deviceId)}, JSON.stringify({ device: ${JSON.stringify(config.deviceId)}, settings: ${JSON.stringify(settingsObj)} }));`;
+          // Update localStorage and fire a custom event so React can re-apply
+          // settings (theme, etc.) without a disruptive full page reload.
+          const script = `
+            localStorage.setItem('paired_device_' + ${JSON.stringify(config.deviceId)}, JSON.stringify({ device: ${JSON.stringify(config.deviceId)}, settings: ${JSON.stringify(settingsObj)} }));
+            window.dispatchEvent(new CustomEvent('qubit:settings-changed', { detail: { deviceId: ${JSON.stringify(config.deviceId)}, settings: ${JSON.stringify(settingsObj)} } }));
+          `;
           try { await win.webContents.executeJavaScript(script); } catch (e) { /* ignore */ }
-          try { win.reload(); } catch (e) { /* ignore */ }
         }
         lastSettingsHash = hash;
       } catch (e) {
