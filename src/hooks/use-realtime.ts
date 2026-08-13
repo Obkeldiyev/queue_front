@@ -4,7 +4,18 @@ import { useQueryClient } from "@tanstack/react-query";
 const defaultWsUrl = typeof window !== "undefined"
   ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`
   : "ws://localhost:9000/ws";
-const WS_URL = import.meta.env.VITE_WS_URL || defaultWsUrl;
+
+// VITE_WS_URL may be a relative path like "/ws" (set for proxy setups).
+// WebSocket constructor requires an absolute URL, so resolve relative paths
+// against the current page origin.
+function resolveWsUrl(url: string): string {
+  if (url.startsWith("ws://") || url.startsWith("wss://")) return url;
+  if (typeof window === "undefined") return url;
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${proto}://${window.location.host}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+const WS_URL = resolveWsUrl(import.meta.env.VITE_WS_URL || defaultWsUrl);
 
 type WsEventType =
   | "ticket:issued"

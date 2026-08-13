@@ -6,7 +6,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
-import { Ticket as TicketIcon, Clock, Hash, Printer, ChevronLeft, ChevronRight, FolderOpen, Download } from "lucide-react";
+import { Ticket as TicketIcon, Clock, Hash, Printer, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import {
   printTicketReceipt,
@@ -92,7 +92,8 @@ function KioskPage() {
     queryKey: ["menus-kiosk", branch?.company_id],
     queryFn: () => menusApi.list({ company_id: branch!.company_id! }).then((r) => r.data),
     enabled: !!branch?.company_id,
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   // Flat queue list (shown when no menus, or as leaf targets)
@@ -304,56 +305,6 @@ function KioskPage() {
               <h1 className="text-4xl font-black tracking-tight">{t("kioskTitle")}</h1>
               <p className={`mt-2 ${muted}`}>{t("kioskSubtitle")}</p>
             </>
-          )}
-          {/* Download Kiosk button (creates a ZIP with EXE + kiosk-config.json) */}
-          {deviceId && (
-            <div className="mt-4">
-              <Button onClick={async () => {
-                try {
-                  const raw = localStorage.getItem(`paired_device_${deviceId}`);
-                  const parsed = raw ? JSON.parse(raw) : {};
-                  const pairing = localStorage.getItem("qms_pairing_token") || parsed.pairingToken || parsed.token;
-                  const body = {
-                    deviceId,
-                    kioskUrl: window.location.href,
-                    apiUrl: window.location.origin,
-                    printerName: parsed.printerName || parsed.settings?.printer_name,
-                    apiToken: pairing,
-                    fullscreen: true,
-                  };
-                  const resp = await fetch(`/api/v1/kiosk/build`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-                  if (!resp.ok) {
-                    const j = await resp.json().catch(() => ({}));
-                    toast.error(j.message || "Failed to build kiosk");
-                    return;
-                  }
-                  const contentType = resp.headers.get("content-type") || "";
-                  if (contentType.includes("application/json")) {
-                    const j = await resp.json().catch(() => ({}));
-                    toast.error(j.message || "Failed to build kiosk on server");
-                    return;
-                  }
-                  if (!contentType.includes("zip") && !contentType.includes("application/octet-stream") && !contentType.includes("application/zip")) {
-                    // unknown content-type: try to inspect as json
-                    const text = await resp.text();
-                    try { const j = JSON.parse(text); toast.error(j.message || "Failed to build kiosk"); return; } catch { /* fallthrough */ }
-                  }
-                  const blob = await resp.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `qubit-kiosk.zip`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  URL.revokeObjectURL(url);
-                } catch (e) {
-                  toast.error((e as Error).message || "Failed to download kiosk");
-                }
-              }} className="mx-auto inline-flex items-center gap-2">
-                <Download className="h-4 w-4" /> Download Kiosk
-              </Button>
-            </div>
           )}
         </div>
 
