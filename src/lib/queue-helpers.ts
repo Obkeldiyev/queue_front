@@ -37,6 +37,7 @@ export interface PrintTicketOptions {
   position?: number;
   estimatedWaitMins?: number | null;
   branchName?: string;
+  logoUrl?: string;
   lang?: "uz" | "ru" | "en";
   useLocalBridge?: boolean;
   silentOnly?: boolean;
@@ -246,7 +247,7 @@ export async function pairBrowserPrinter(): Promise<boolean> {
 // HTML receipt builder (for iframe fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildReceiptHtml(opts: PrintTicketOptions): string {
-  const { ticketNumber, queueName: qName, position, branchName, lang = "uz" } = opts;
+  const { ticketNumber, queueName: qName, position, branchName, logoUrl, lang = "uz" } = opts;
 
   const L = {
     uz: { serviceLabel: "Xizmat turi:", before: "Sizdan oldingi navbat:", ta: "ta" },
@@ -259,26 +260,39 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const beforeCount = position != null ? Math.max(0, position - 1) : null;
 
+  // Resolve logo URL — if relative path, prefix with the API origin
+  const resolvedLogo = logoUrl
+    ? (logoUrl.startsWith("http") ? logoUrl : `https://xnavbat.polito.uz${logoUrl.startsWith("/") ? "" : "/"}${logoUrl}`)
+    : null;
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:72mm;margin:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:2mm 2mm 2mm}
-.outer{border:0.5mm dashed #000;padding:4mm 4mm 5mm;width:100%}
-.org{font-size:5mm;font-weight:900;text-align:center;margin-bottom:5mm;word-break:break-word;color:#000;line-height:1.3}
-.ticket-num{font-size:28mm;font-weight:900;text-align:center;letter-spacing:1mm;line-height:1;color:#000;margin:3mm 0 4mm}
-.service-label{font-size:3.5mm;text-align:center;color:#000;margin-bottom:2mm}
-.service-box{border:0.5mm solid #000;padding:2.5mm 3mm;text-align:center;margin-bottom:5mm}
-.service-name{font-size:5.5mm;font-weight:900;color:#000}
-.before{font-size:4.5mm;text-align:center;color:#000;margin-bottom:5mm}
+html,body{width:68mm;margin:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:2mm 1.5mm 2mm}
+.outer{border:0.5mm dashed #000;padding:3.5mm 3.5mm 4mm;width:100%}
+.header{display:flex;align-items:center;gap:2.5mm;margin-bottom:4mm}
+.logo{width:13mm;height:13mm;object-fit:contain;flex-shrink:0}
+.header-text{flex:1;min-width:0}
+.org{font-size:4mm;font-weight:900;color:#000;line-height:1.2;word-break:break-word}
+.ticket-num{font-size:20mm;font-weight:900;text-align:center;letter-spacing:0.5mm;line-height:1;color:#000;margin:2.5mm 0 3mm}
+.service-label{font-size:3.2mm;text-align:center;color:#000;margin-bottom:1.5mm}
+.service-box{border:0.5mm solid #000;padding:2mm 2.5mm;text-align:center;margin-bottom:4mm}
+.service-name{font-size:5mm;font-weight:900;color:#000}
+.before{font-size:4mm;text-align:center;color:#000;margin-bottom:4mm}
 .before strong{font-weight:900}
-.divider{border:none;border-top:0.6mm solid #000;margin:0 0 3mm}
-.datetime{display:flex;justify-content:space-between;font-size:4mm;font-style:italic;color:#000;font-weight:700}
+.divider{border:none;border-top:0.5mm solid #000;margin:0 0 2.5mm}
+.datetime{display:flex;justify-content:space-between;font-size:3.5mm;font-style:italic;color:#000;font-weight:700}
 @page{size:72mm auto;margin:0}
-@media print{html,body{width:72mm;margin:0}}
+@media print{html,body{width:68mm;margin:0}}
 </style></head><body>
 <div class="outer">
-  <div class="org">${branchName || "Qubit QMS"}</div>
+  <div class="header">
+    ${resolvedLogo ? `<img class="logo" src="${resolvedLogo}" alt="logo"/>` : ""}
+    <div class="header-text">
+      <div class="org">${branchName || "Qubit QMS"}</div>
+    </div>
+  </div>
   <div class="ticket-num">${ticketNumber}</div>
   <div class="service-label">${L.serviceLabel}</div>
   <div class="service-box"><div class="service-name">${qName}</div></div>

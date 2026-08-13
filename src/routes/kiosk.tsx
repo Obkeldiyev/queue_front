@@ -161,6 +161,7 @@ function KioskPage() {
         position: waitCount + 1,
         estimatedWaitMins: estMins,
         branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
+        logoUrl: (branch as any)?.company?.logo_media?.url ?? undefined,
         lang,
       });
     },
