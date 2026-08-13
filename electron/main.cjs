@@ -32,7 +32,8 @@ function loadConfig() {
 
 function copyDefaultConfig() {
   const target = path.join(app.getPath("userData"), "kiosk-config.json");
-  if (fs.existsSync(target)) return;
+  // Always overwrite userData config with the merged config so that the
+  // kiosk-config.json placed beside the EXE always takes effect.
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, JSON.stringify(loadConfig(), null, 2));
 }
@@ -88,6 +89,20 @@ function createWindow() {
   });
 
   win.loadURL(config.kioskUrl);
+  console.log('[kiosk] loadURL:', config.kioskUrl);
+
+  // Open DevTools in windowed mode for debugging
+  if (!config.fullscreen || process.argv.includes('--devtools')) {
+    win.webContents.openDevTools({ mode: 'detach' });
+  }
+
+  // Log page errors to help diagnose socket/API issues
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('[kiosk] did-fail-load', errorCode, errorDescription, validatedURL);
+  });
+  win.webContents.on('console-message', (event, level, message) => {
+    if (level >= 2) console.error('[kiosk page error]', message);
+  });
 
   // If configured with backend API + deviceId, fetch device settings and inject into page localStorage.
   if (config.apiUrl && config.deviceId) {
