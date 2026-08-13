@@ -42,6 +42,15 @@ export interface PrintTicketOptions {
   silentOnly?: boolean;
 }
 
+declare global {
+  interface Window {
+    qubitKiosk?: {
+      printReceipt: (html: string) => Promise<unknown>;
+      getPrinters: () => Promise<unknown[]>;
+    };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ESC/POS commands for thermal receipt printers
 // These are sent directly via Web Serial API (no print dialog at all).
@@ -380,10 +389,17 @@ export function printTicketReceipt(
     ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
     : ticketNumberOrOpts;
 
-  // Primary production path for Windows printer queues such as "w80":
-  // browser printing. If Chrome/Edge is launched with --kiosk-printing and
-  // w80 is the default printer, the browser prints without showing preview.
   (async () => {
+    if (window.qubitKiosk?.printReceipt) {
+      try {
+        await window.qubitKiosk.printReceipt(buildReceiptHtml(opts));
+        return;
+      } catch (error) {
+        console.error("[kiosk print] Electron silent print failed.", error);
+        if (opts.silentOnly) return;
+      }
+    }
+
     if (shouldUseLocalBridge(opts)) {
       try {
         const controller = new AbortController();

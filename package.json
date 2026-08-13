@@ -3,6 +3,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -10,6 +11,9 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "electron": "electron electron/main.cjs",
+    "electron:pack": "electron-builder --win portable",
+    "electron:installer": "electron-builder --win nsis",
     "printer": "node tools/kiosk-printer-daemon.js",
     "printer:epson": "node tools/kiosk-printer-daemon.js --printer \"EPSON WF-5620 Series\""
   },
@@ -75,6 +79,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -86,5 +92,23 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
+  },
+  "build": {
+    "appId": "uz.polito.xnavbat.kiosk",
+    "productName": "Qubit QMS Kiosk",
+    "files": [
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

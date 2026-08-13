@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Plus, Trash2, Cpu, Wifi, WifiOff, Copy, ExternalLink, QrCode, KeyRound } from "lucide-react";
+import { Plus, Trash2, Cpu, Wifi, WifiOff, Copy, ExternalLink, QrCode, KeyRound, Download } from "lucide-react";
 import { toast } from "sonner";
 import { buildDeviceLink } from "@/lib/queue-helpers";
 
@@ -46,6 +46,27 @@ function deviceLaunchLinks(type: string, branchId: string, deviceId: string) {
     return [{ label: "Printer setup", url: buildDeviceLink("kiosk", branchId, deviceId) + "&setup=printer" }];
   }
   return [{ label: mode[0].toUpperCase() + mode.slice(1), url: buildDeviceLink(mode, branchId, deviceId) }];
+}
+
+function isKioskDevice(type: string) {
+  return type.includes("KIOSK");
+}
+
+function downloadKioskConfig(url: string, deviceId: string) {
+  const config = {
+    kioskUrl: url,
+    printerName: "w80",
+    fullscreen: true,
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `kiosk-config-${deviceId.slice(0, 8)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  toast.success("Kiosk config downloaded");
 }
 
 function Devices() {
@@ -117,6 +138,22 @@ function Devices() {
                     </div>
                   );
                 })}
+                {isKioskDevice(created.device_type) && (
+                  <div className="rounded-lg border bg-muted/40 p-2.5">
+                    <p className="mb-2 text-xs text-muted-foreground">For the Windows kiosk EXE, place this file next to the EXE and rename it to <code>kiosk-config.json</code>.</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      onClick={() => {
+                        const url = buildDeviceLink("kiosk", created.branch_id, created.id);
+                        downloadKioskConfig(url, created.id);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download EXE config
+                    </Button>
+                  </div>
+                )}
                 {created.auth_token && (
                   <div className="rounded-lg border bg-muted/40 p-2.5">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -198,6 +235,16 @@ function Devices() {
                   }}>
                     <QrCode className="h-3.5 w-3.5" />Open &amp; Pair
                   </Button>
+                  {isKioskDevice(d.device_type) && launchLinks[0] && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      onClick={() => downloadKioskConfig(launchLinks[0].url, d.id)}
+                    >
+                      <Download className="h-3.5 w-3.5" />Download EXE config
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
