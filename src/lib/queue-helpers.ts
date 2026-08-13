@@ -261,8 +261,8 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:76mm;margin:0 auto;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:4mm 3mm 5mm}
+html,body{width:72mm;margin:0;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:4mm 2mm 5mm}
 .org{font-size:5mm;font-weight:900;letter-spacing:0.5mm;text-transform:uppercase;text-align:center;margin-bottom:1mm;word-break:break-word;color:#000}
 .title{font-size:3mm;font-weight:700;text-align:center;letter-spacing:1mm;text-transform:uppercase;color:#000;margin-bottom:3mm}
 .hr-solid{border:none;border-top:0.6mm solid #000;margin:2.5mm 0}
@@ -277,8 +277,8 @@ body{padding:4mm 3mm 5mm}
 .thanks{text-align:center;font-size:3.5mm;font-weight:900;color:#000;padding:3mm 0 1.5mm}
 .brand{text-align:center;font-size:3mm;font-weight:700;color:#000;letter-spacing:0.5mm;margin-top:1mm}
 .datetime{text-align:center;font-size:3mm;font-weight:700;color:#000;margin-top:1.5mm;letter-spacing:0.3mm}
-@page{size:80mm auto;margin:0}
-@media print{html,body{width:76mm;margin:0 auto}}
+@page{size:72mm auto;margin:0}
+@media print{html,body{width:72mm;margin:0}}
 </style></head><body>
 <div class="org">${branchName || "Qubit QMS"}</div>
 <div class="title">${L.title}</div>
