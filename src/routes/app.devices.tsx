@@ -76,23 +76,11 @@ async function downloadKioskConfig(url: string, deviceId: string) {
     URL.revokeObjectURL(link.href);
     toast.success("Kiosk ZIP downloaded");
   } catch (e) {
-    // fallback: open a form POST to let the browser handle the download natively
+    // fallback: open a direct GET URL so the browser performs the download natively
     try {
-      const payload = { deviceId, kioskUrl: url, printerName: "w80", fullscreen: true };
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "/api/v1/kiosk/build";
-      form.target = "_blank";
-      form.style.display = "none";
-      // include data as a single field with JSON string
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "payload";
-      input.value = JSON.stringify(payload);
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-      setTimeout(() => { form.remove(); }, 2000);
+      const params = new URLSearchParams({ deviceId, kioskUrl: url, printerName: "w80", fullscreen: String(true) });
+      const downloadUrl = `/api/v1/kiosk/build?${params.toString()}`;
+      window.open(downloadUrl, "_blank");
       toast.success("Download started (browser fallback)");
     } catch (err) {
       toast.error((e as Error).message || "Failed to download kiosk");
