@@ -327,6 +327,17 @@ function KioskPage() {
                     toast.error(j.message || "Failed to build kiosk");
                     return;
                   }
+                  const contentType = resp.headers.get("content-type") || "";
+                  if (contentType.includes("application/json")) {
+                    const j = await resp.json().catch(() => ({}));
+                    toast.error(j.message || "Failed to build kiosk on server");
+                    return;
+                  }
+                  if (!contentType.includes("zip") && !contentType.includes("application/octet-stream") && !contentType.includes("application/zip")) {
+                    // unknown content-type: try to inspect as json
+                    const text = await resp.text();
+                    try { const j = JSON.parse(text); toast.error(j.message || "Failed to build kiosk"); return; } catch { /* fallthrough */ }
+                  }
                   const blob = await resp.blob();
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
