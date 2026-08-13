@@ -404,9 +404,12 @@ export function printTicketReceipt(
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 500);
+        const pairingToken = typeof window !== "undefined" ? localStorage.getItem("qms_pairing_token") : null;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (pairingToken) headers.Authorization = `Bearer ${pairingToken}`;
         const resp = await fetch("http://localhost:4020/print", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ text: buildReceiptText(opts), html: buildReceiptHtml(opts) }),
           signal: controller.signal,
         });

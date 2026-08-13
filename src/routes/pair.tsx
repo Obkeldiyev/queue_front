@@ -36,6 +36,21 @@ function PairPage() {
           if (parsed) {
             try {
               localStorage.setItem(`paired_device_${device}`, JSON.stringify({ device, settings: parsed }));
+              // If pairing token present in settings, persist short key for local bridge and post to local daemon
+              const token = parsed.pairingToken || parsed.pairing_token || parsed.settings?.pairingToken || parsed.settings?.pairing_token;
+              const printerName = parsed.printerName || parsed.printer || parsed.settings?.printerName || parsed.settings?.printer;
+              if (token) {
+                try { localStorage.setItem("qms_pairing_token", token); } catch { /* ignore */ }
+                // Try to notify local print bridge (best-effort)
+                try {
+                  fetch("http://localhost:4020/config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pairingToken: token, printerName }),
+                    keepalive: true,
+                  }).catch(() => {});
+                } catch { /* ignore */ }
+              }
               try {
                 const { devicesApi } = await import("@/lib/api");
                 await devicesApi.update(device, { settings: parsed });

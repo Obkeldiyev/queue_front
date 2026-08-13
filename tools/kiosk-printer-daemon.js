@@ -236,6 +236,26 @@ async function printReceipt(payload) {
   throw new Error("Missing text or html");
 }
 
+// Simple in-memory job queue and async worker
+const jobs = new Map();
+async function enqueuePrintJob(payload) {
+  const id = crypto.randomBytes(8).toString("hex");
+  jobs.set(id, { status: "queued", created_at: new Date().toISOString() });
+  // Run job asynchronously without blocking the HTTP response
+  setImmediate(async () => {
+    try {
+      jobs.set(id, { status: "running", started_at: new Date().toISOString() });
+      const result = await printReceipt(payload);
+      jobs.set(id, { status: "done", result, finished_at: new Date().toISOString() });
+    } catch (err) {
+      jobs.set(id, { status: "error", message: err && err.message ? err.message : String(err), finished_at: new Date().toISOString() });
+    }
+    // prune old jobs after a while
+    setTimeout(() => { try { jobs.delete(id); } catch {} }, 1000 * 60 * 60);
+  });
+  return id;
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "OPTIONS") return sendJson(res, 204, {});
@@ -253,14 +273,34 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/config") {
       const body = await readBody(req);
-      saveConfig({ printerName: body.printerName || "" });
+      // allow setting a pairing token and printer name via config (admin-initiated)
+      const next = {};
+      if (body.printerName) next.printerName = body.printerName;
+      if (body.pairingToken) next.pairingToken = body.pairingToken;
+      saveConfig(next);
       return sendJson(res, 200, { success: true, config: loadConfig() });
     }
 
     if (req.method === "POST" && url.pathname === "/print") {
       const body = await readBody(req);
-      const result = await printReceipt(body);
-      return sendJson(res, 200, { success: true, ...result });
+
+      // Auth: require pairing token unless explicitly disabled via env
+      const cfg = loadConfig();
+      const expected = cfg.pairingToken || process.env.QMS_PRINT_PAIRING_TOKEN;
+      const auth = (req.headers.authorization || "").toString();
+      const provided = auth.startsWith("Bearer ") ? auth.slice(7) : body.pairingToken || body.token;
+      if (expected && provided !== expected) {
+        return sendJson(res, 401, { success: false, message: "Unauthorized: pairing token required" });
+      }
+
+      // Enqueue and return immediately
+      const jobId = await enqueuePrintJob(body);
+      return sendJson(res, 202, { success: true, jobId });
+    }
+
+    if (req.method === "GET" && url.pathname === "/jobs") {
+      const list = Array.from(jobs.entries()).map(([id, info]) => ({ id, info }));
+      return sendJson(res, 200, { success: true, jobs: list });
     }
 
     return sendJson(res, 404, { success: false, message: "Not found" });
