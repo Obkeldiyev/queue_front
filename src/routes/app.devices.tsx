@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { Plus, Trash2, Cpu, Wifi, WifiOff, Copy, ExternalLink, QrCode, KeyRound, Download } from "lucide-react";
+import JSZip from "jszip";
 import { toast } from "sonner";
 import { buildDeviceLink } from "@/lib/queue-helpers";
 
@@ -77,6 +78,47 @@ async function downloadKioskConfig(url: string, deviceId: string) {
     toast.success("Kiosk ZIP downloaded");
   } catch (e) {
     toast.error((e as Error).message || "Failed to download kiosk");
+  }
+}
+
+async function promptUploadAndZip(url: string, deviceId: string) {
+  try {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".exe";
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
+
+    const promise = new Promise<File | null>((resolve) => {
+      fileInput.onchange = () => {
+        const f = fileInput.files && fileInput.files[0];
+        resolve(f ?? null);
+      };
+    });
+    fileInput.click();
+    const exeFile = await promise;
+    fileInput.remove();
+    if (!exeFile) {
+      toast.error("No EXE selected");
+      return;
+    }
+
+    const config = { kioskUrl: url, printerName: "w80", fullscreen: true, deviceId };
+    const zip = new JSZip();
+    const exeData = await exeFile.arrayBuffer();
+    zip.file(exeFile.name, exeData);
+    zip.file("kiosk-config.json", JSON.stringify(config, null, 2));
+    const content = await zip.generateAsync({ type: "blob" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(content);
+    link.download = `qubit-kiosk-${deviceId.slice(0, 8)}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    toast.success("Kiosk ZIP created locally");
+  } catch (err) {
+    toast.error((err as Error).message || "Failed to create local ZIP");
   }
 }
 
