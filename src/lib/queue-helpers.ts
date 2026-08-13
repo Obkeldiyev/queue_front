@@ -246,165 +246,54 @@ export async function pairBrowserPrinter(): Promise<boolean> {
 // HTML receipt builder (for iframe fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildReceiptHtml(opts: PrintTicketOptions): string {
-  const { ticketNumber, queueName: qName, counterName: cName, position, estimatedWaitMins, branchName, lang = "en" } = opts;
+  const { ticketNumber, queueName: qName, counterName: cName, estimatedWaitMins, branchName, lang = "en" } = opts;
 
   const L = {
-    uz: { title: "NAVBAT CHIPTASI", service: "XIZMAT", window: "KABINET", pos: "NAVBAT RAQAMI", wait: "KUTISH VAQTI", min: "daqiqa", printed: "Chop etildi", thanks: "Xizmatdan foydalanganingiz uchun rahmat!" },
-    ru: { title: "ТАЛОН ОЧЕРЕДИ",   service: "УСЛУГА",  window: "КАБИНЕТ", pos: "НОМЕР В ОЧЕРЕДИ", wait: "ВРЕМЯ ОЖИДАНИЯ", min: "минут", printed: "Напечатано", thanks: "Спасибо за обращение!" },
-    en: { title: "QUEUE TICKET",    service: "SERVICE", window: "WINDOW",  pos: "QUEUE POSITION", wait: "EST. WAIT TIME", min: "minutes", printed: "Printed", thanks: "Thank you for your visit!" },
-  }[lang] ?? { title: "QUEUE TICKET", service: "SERVICE", window: "WINDOW", pos: "QUEUE POSITION", wait: "EST. WAIT TIME", min: "minutes", printed: "Printed", thanks: "Thank you for your visit!" };
+    uz: { title: "NAVBAT CHIPTASI", service: "XIZMAT", window: "KABINET", wait: "KUTISH VAQTI", min: "daqiqa", thanks: "Xizmatdan foydalanganingiz uchun rahmat!" },
+    ru: { title: "ТАЛОН ОЧЕРЕДИ",   service: "УСЛУГА",  window: "КАБИНЕТ", wait: "ВРЕМЯ ОЖИДАНИЯ", min: "минут",  thanks: "Спасибо за обращение!" },
+    en: { title: "QUEUE TICKET",    service: "SERVICE", window: "WINDOW",  wait: "EST. WAIT TIME", min: "minutes",thanks: "Thank you for your visit!" },
+  }[lang] ?? { title: "QUEUE TICKET", service: "SERVICE", window: "WINDOW", wait: "EST. WAIT TIME", min: "minutes", thanks: "Thank you for your visit!" };
 
   const now = new Date();
   const dateStr = now.toLocaleDateString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
   const timeStr = now.toLocaleTimeString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
 
-return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=302"/>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{
-  width:302px;
-  background:#fff;
-  color:#000;
-  font-family:'Courier New',Courier,monospace;
-  -webkit-print-color-adjust:exact;
-  print-color-adjust:exact;
-}
-body{padding:10px 12px 14px}
-
-.org{
-  font-size:12px;
-  font-weight:900;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  text-align:center;
-  margin-bottom:2px;
-  word-break:break-word;
-  color:#000;
-}
-.title{
-  font-size:7px;
-  font-weight:700;
-  text-align:center;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:7px;
-}
-.hr-solid{border:none;border-top:1.5px solid #000;margin:6px 0}
-.hr-dash{border:none;border-top:1px dashed #000;margin:6px 0}
-.pos-label{
-  font-size:7px;
-  font-weight:700;
-  text-align:center;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:3px;
-}
-.ticket-num{
-  font-size:56px;
-  font-weight:900;
-  text-align:center;
-  letter-spacing:3px;
-  line-height:1;
-  color:#000;
-  margin:4px 0 7px;
-}
-.box{
-  border:1.5px solid #000;
-  padding:4px 6px;
-  margin:4px 0;
-  text-align:center;
-}
-.box-lbl{
-  font-size:6px;
-  font-weight:700;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:2px;
-}
-.box-val{
-  font-size:11px;
-  font-weight:900;
-  color:#000;
-  word-break:break-word;
-}
-.info-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:8px;
-  font-weight:700;
-  padding:4px 0;
-  border-bottom:1px solid #000;
-  color:#000;
-}
-.info-row:last-child{border-bottom:none}
-.info-lbl{text-transform:uppercase;letter-spacing:0.5px;color:#000;font-weight:700}
+html,body{width:76mm;margin:0 auto;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:4mm 3mm 5mm}
+.org{font-size:5mm;font-weight:900;letter-spacing:0.5mm;text-transform:uppercase;text-align:center;margin-bottom:1mm;word-break:break-word;color:#000}
+.title{font-size:3mm;font-weight:700;text-align:center;letter-spacing:1mm;text-transform:uppercase;color:#000;margin-bottom:3mm}
+.hr-solid{border:none;border-top:0.6mm solid #000;margin:2.5mm 0}
+.hr-dash{border:none;border-top:0.4mm dashed #000;margin:2.5mm 0}
+.ticket-num{font-size:22mm;font-weight:900;text-align:center;letter-spacing:1.5mm;line-height:1;color:#000;margin:2mm 0 3mm}
+.box{border:0.6mm solid #000;padding:2mm 3mm;margin:2mm 0;text-align:center}
+.box-lbl{font-size:2.5mm;font-weight:700;letter-spacing:0.8mm;text-transform:uppercase;color:#000;margin-bottom:1mm}
+.box-val{font-size:5mm;font-weight:900;color:#000;word-break:break-word}
+.info-row{display:flex;justify-content:space-between;align-items:center;font-size:3.2mm;font-weight:700;padding:1.5mm 0;color:#000}
+.info-lbl{text-transform:uppercase;letter-spacing:0.3mm;color:#000;font-weight:700}
 .info-val{font-weight:900;text-align:right;color:#000}
-.thanks{
-  text-align:center;
-  font-size:8px;
-  font-weight:900;
-  color:#000;
-  padding:6px 0 3px;
-}
-.brand{
-  text-align:center;
-  font-size:7px;
-  font-weight:700;
-  color:#000;
-  letter-spacing:1px;
-  margin-top:2px;
-}
-.datetime{
-  text-align:center;
-  font-size:7px;
-  font-weight:700;
-  color:#000;
-  margin-top:4px;
-  letter-spacing:0.5px;
-}
+.thanks{text-align:center;font-size:3.5mm;font-weight:900;color:#000;padding:3mm 0 1.5mm}
+.brand{text-align:center;font-size:3mm;font-weight:700;color:#000;letter-spacing:0.5mm;margin-top:1mm}
+.datetime{text-align:center;font-size:3mm;font-weight:700;color:#000;margin-top:1.5mm;letter-spacing:0.3mm}
 @page{size:80mm auto;margin:0}
-@media print{html,body{width:302px}}
+@media print{html,body{width:76mm;margin:0 auto}}
 </style></head><body>
-
 <div class="org">${branchName || "Qubit QMS"}</div>
 <div class="title">${L.title}</div>
-
 <div class="hr-solid"></div>
-
-<div class="pos-label">${L.pos}</div>
 <div class="ticket-num">${ticketNumber}</div>
-
 <div class="hr-dash"></div>
-
-<div class="box">
-  <div class="box-lbl">${L.service}</div>
-  <div class="box-val">${qName}</div>
-</div>
-
-${cName ? `<div class="box">
-  <div class="box-lbl">${L.window}</div>
-  <div class="box-val">${cName}</div>
-</div>` : ""}
-
-${(position != null || estimatedWaitMins != null) ? `
-<div class="hr-dash"></div>
-${position != null ? `<div class="info-row"><span class="info-lbl">${L.pos}</span><span class="info-val">${position}</span></div>` : ""}
-${estimatedWaitMins != null ? `<div class="info-row"><span class="info-lbl">${L.wait}</span><span class="info-val">~${estimatedWaitMins} ${L.min}</span></div>` : ""}` : ""}
-
+<div class="box"><div class="box-lbl">${L.service}</div><div class="box-val">${qName}</div></div>
+${cName ? `<div class="box"><div class="box-lbl">${L.window}</div><div class="box-val">${cName}</div></div>` : ""}
+${estimatedWaitMins != null ? `<div class="hr-dash"></div><div class="info-row"><span class="info-lbl">${L.wait}</span><span class="info-val">~${estimatedWaitMins} ${L.min}</span></div>` : ""}
 <div class="hr-solid"></div>
-
 <div class="thanks">${L.thanks}</div>
 <div class="brand">Qubit QMS</div>
 <div class="datetime">${dateStr} &nbsp; ${timeStr}</div>
-
 </body></html>`;
 }
-
 function centerLine(value: string, width = 32): string {
   const text = value.trim();
   if (text.length >= width) return text;
