@@ -249,143 +249,179 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   const { ticketNumber, queueName: qName, counterName: cName, position, estimatedWaitMins, branchName, lang = "en" } = opts;
 
   const L = {
-    uz: { title: "NAVBAT CHIPTASI", service: "Xizmat", window: "Kabinet", pos: "Navbat raqami", wait: "Kutish vaqti", min: "daq", printed: "Chop etildi", thanks: "Xizmatdan foydalanganingiz uchun rahmat!", wifi: "Qubit QMS" },
-    ru: { title: "ТАЛОН ОЧЕРЕДИ",   service: "Услуга",  window: "Кабинет", pos: "Номер в очереди", wait: "Время ожидания", min: "мин", printed: "Напечатано", thanks: "Спасибо за обращение!", wifi: "Qubit QMS" },
-    en: { title: "QUEUE TICKET",    service: "Service", window: "Window",  pos: "Queue position", wait: "Est. wait", min: "min", printed: "Printed", thanks: "Thank you for your visit!", wifi: "Qubit QMS" },
-  }[lang] ?? { title: "QUEUE TICKET", service: "Service", window: "Window", pos: "Queue position", wait: "Est. wait", min: "min", printed: "Printed", thanks: "Thank you for your visit!", wifi: "Qubit QMS" };
+    uz: { title: "NAVBAT CHIPTASI", service: "XIZMAT", window: "KABINET", pos: "NAVBAT RAQAMI", wait: "KUTISH VAQTI", min: "daqiqa", printed: "Chop etildi", thanks: "Xizmatdan foydalanganingiz uchun rahmat!" },
+    ru: { title: "ТАЛОН ОЧЕРЕДИ",   service: "УСЛУГА",  window: "КАБИНЕТ", pos: "НОМЕР В ОЧЕРЕДИ", wait: "ВРЕМЯ ОЖИДАНИЯ", min: "минут", printed: "Напечатано", thanks: "Спасибо за обращение!" },
+    en: { title: "QUEUE TICKET",    service: "SERVICE", window: "WINDOW",  pos: "QUEUE POSITION", wait: "EST. WAIT TIME", min: "minutes", printed: "Printed", thanks: "Thank you for your visit!" },
+  }[lang] ?? { title: "QUEUE TICKET", service: "SERVICE", window: "WINDOW", pos: "QUEUE POSITION", wait: "EST. WAIT TIME", min: "minutes", printed: "Printed", thanks: "Thank you for your visit!" };
 
   const now = new Date();
   const dateStr = now.toLocaleDateString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
   const timeStr = now.toLocaleTimeString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
 
 return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=640"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px}
 html,body{
-  width:80mm;
-  font-family:'Courier New',Courier,monospace;
+  width:640px;
   background:#fff;
   color:#000;
-  font-size:13px;
+  font-family:'Courier New',Courier,monospace;
   -webkit-print-color-adjust:exact;
   print-color-adjust:exact;
 }
-body{padding:4mm 5mm 6mm}
-.center{text-align:center}
-.bold{font-weight:900}
-.upper{text-transform:uppercase}
+body{padding:32px 40px 40px}
+
 .org{
-  font-size:15px;
+  font-size:28px;
   font-weight:900;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  text-align:center;
-  margin-bottom:1mm;
-  word-break:break-word;
-}
-.subtitle{
-  font-size:10px;
-  text-align:center;
-  color:#444;
-  margin-bottom:3mm;
-  letter-spacing:0.5px;
-}
-.hr-solid{border:none;border-top:1.5px solid #000;margin:3mm 0}
-.hr-dash{border:none;border-top:1px dashed #777;margin:3mm 0}
-.ticket-label{
-  font-size:10px;
-  text-align:center;
   letter-spacing:2px;
   text-transform:uppercase;
-  color:#333;
-  margin-bottom:1mm;
+  text-align:center;
+  margin-bottom:6px;
+  word-break:break-word;
+  color:#000;
+}
+.title{
+  font-size:16px;
+  font-weight:700;
+  text-align:center;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:20px;
+}
+.hr-solid{
+  border:none;
+  border-top:2.5px solid #000;
+  margin:16px 0;
+}
+.hr-dash{
+  border:none;
+  border-top:2px dashed #000;
+  margin:16px 0;
+}
+.pos-label{
+  font-size:18px;
+  font-weight:700;
+  text-align:center;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:8px;
 }
 .ticket-num{
-  font-size:72px;
+  font-size:130px;
   font-weight:900;
   text-align:center;
-  letter-spacing:4px;
+  letter-spacing:6px;
   line-height:1;
-  margin:2mm 0 3mm;
+  color:#000;
+  margin:12px 0 20px;
 }
-.service-box{
-  border:1.5px solid #000;
-  padding:2mm 3mm;
-  margin:3mm 0;
+.box{
+  border:3px solid #000;
+  padding:12px 16px;
+  margin:12px 0;
   text-align:center;
 }
-.service-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:1mm}
-.service-val{font-size:14px;font-weight:900;word-break:break-word}
+.box-lbl{
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:6px;
+}
+.box-val{
+  font-size:26px;
+  font-weight:900;
+  color:#000;
+  word-break:break-word;
+}
 .info-row{
   display:flex;
   justify-content:space-between;
-  align-items:baseline;
-  font-size:11px;
-  padding:1.5mm 0;
-  border-bottom:1px dotted #ccc;
+  align-items:center;
+  font-size:18px;
+  font-weight:700;
+  padding:10px 0;
+  border-bottom:1.5px solid #000;
+  color:#000;
 }
-.info-row:last-of-type{border-bottom:none}
-.info-lbl{color:#444}
-.info-val{font-weight:900;text-align:right;max-width:45mm;word-break:break-word}
+.info-row:last-child{border-bottom:none}
+.info-lbl{
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:#000;
+  font-weight:700;
+}
+.info-val{
+  font-weight:900;
+  text-align:right;
+  color:#000;
+}
 .thanks{
   text-align:center;
-  font-size:11px;
-  font-weight:bold;
-  padding:3mm 0 1mm;
-  letter-spacing:0.3px;
+  font-size:20px;
+  font-weight:900;
+  color:#000;
+  padding:16px 0 8px;
+  letter-spacing:0.5px;
 }
-.wifi{
+.brand{
   text-align:center;
-  font-size:9px;
-  color:#666;
-  margin-top:1mm;
+  font-size:15px;
+  font-weight:700;
+  color:#000;
+  letter-spacing:2px;
+  margin-top:6px;
 }
 .datetime{
   text-align:center;
-  font-size:9px;
-  color:#666;
-  margin-top:2mm;
+  font-size:15px;
+  font-weight:700;
+  color:#000;
+  margin-top:10px;
+  letter-spacing:1px;
 }
-@page{size:80mm auto;margin:0}
+@page{size:640px auto;margin:0}
 @media print{
-  html,body{width:80mm}
-  .ticket-num{font-size:72px}
+  html,body{width:640px}
 }
 </style></head><body>
 
-${branchName ? `<div class="org">${branchName}</div>` : `<div class="org">Qubit QMS</div>`}
-<div class="subtitle">${L.title}</div>
+<div class="org">${branchName || "Qubit QMS"}</div>
+<div class="title">${L.title}</div>
 
-<hr class="hr-solid"/>
+<div class="hr-solid"></div>
 
-<div class="ticket-label">${L.pos}</div>
+<div class="pos-label">${L.pos}</div>
 <div class="ticket-num">${ticketNumber}</div>
 
-<hr class="hr-dash"/>
+<div class="hr-dash"></div>
 
-<div class="service-box">
-  <div class="service-lbl">${L.service}</div>
-  <div class="service-val">${qName}</div>
+<div class="box">
+  <div class="box-lbl">${L.service}</div>
+  <div class="box-val">${qName}</div>
 </div>
 
-${cName ? `
-<div class="service-box">
-  <div class="service-lbl">${L.window}</div>
-  <div class="service-val">${cName}</div>
+${cName ? `<div class="box">
+  <div class="box-lbl">${L.window}</div>
+  <div class="box-val">${cName}</div>
 </div>` : ""}
 
 ${(position != null || estimatedWaitMins != null) ? `
-<hr class="hr-dash"/>
-<div>
-  ${position != null ? `<div class="info-row"><span class="info-lbl">${L.pos}</span><span class="info-val">${position}</span></div>` : ""}
-  ${estimatedWaitMins != null ? `<div class="info-row"><span class="info-lbl">${L.wait}</span><span class="info-val">~${estimatedWaitMins} ${L.min}</span></div>` : ""}
-</div>` : ""}
+<div class="hr-dash"></div>
+${position != null ? `<div class="info-row"><span class="info-lbl">${L.pos}</span><span class="info-val">${position}</span></div>` : ""}
+${estimatedWaitMins != null ? `<div class="info-row"><span class="info-lbl">${L.wait}</span><span class="info-val">~${estimatedWaitMins} ${L.min}</span></div>` : ""}` : ""}
 
-<hr class="hr-solid"/>
+<div class="hr-solid"></div>
 
 <div class="thanks">${L.thanks}</div>
-<div class="wifi">${L.wifi}</div>
-<div class="datetime">${dateStr}  ${timeStr}</div>
+<div class="brand">Qubit QMS</div>
+<div class="datetime">${dateStr} &nbsp; ${timeStr}</div>
 
 </body></html>`;
 }
