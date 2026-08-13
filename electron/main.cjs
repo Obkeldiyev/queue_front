@@ -63,6 +63,12 @@ function createWindow() {
     height: 800,
     fullscreen: Boolean(config.fullscreen),
     autoHideMenuBar: true,
+    // create a frameless window so standard window controls are not shown
+    frame: false,
+    // ensure the window cannot be minimized/maximized/closed via OS buttons
+    minimizable: false,
+    maximizable: false,
+    closable: false,
     backgroundColor: "#020617",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),

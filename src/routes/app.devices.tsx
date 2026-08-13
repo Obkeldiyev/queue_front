@@ -54,7 +54,7 @@ function isKioskDevice(type: string) {
 
 async function downloadKioskConfig(url: string, deviceId: string) {
   try {
-    const body = { deviceId, kioskUrl: url, printerName: "w80", fullscreen: true };
+    const body = { deviceId, kioskUrl: url, apiUrl: window.location.origin, printerName: "w80", fullscreen: true };
     const resp = await fetch(`/api/v1/kiosk/build`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
@@ -78,7 +78,7 @@ async function downloadKioskConfig(url: string, deviceId: string) {
   } catch (e) {
     // fallback: open a direct GET URL so the browser performs the download natively
     try {
-      const params = new URLSearchParams({ deviceId, kioskUrl: url, printerName: "w80", fullscreen: String(true) });
+      const params = new URLSearchParams({ deviceId, kioskUrl: url, apiUrl: window.location.origin, printerName: "w80", fullscreen: String(true) });
       const downloadUrl = `/api/v1/kiosk/build?${params.toString()}`;
       window.open(downloadUrl, "_blank");
       toast.success("Download started (browser fallback)");
