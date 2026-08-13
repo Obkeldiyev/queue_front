@@ -246,52 +246,46 @@ export async function pairBrowserPrinter(): Promise<boolean> {
 // HTML receipt builder (for iframe fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildReceiptHtml(opts: PrintTicketOptions): string {
-  const { ticketNumber, queueName: qName, counterName: cName, estimatedWaitMins, branchName, lang = "en" } = opts;
+  const { ticketNumber, queueName: qName, position, branchName, lang = "uz" } = opts;
 
   const L = {
-    uz: { title: "NAVBAT CHIPTASI", service: "XIZMAT", window: "KABINET", wait: "KUTISH VAQTI", min: "daqiqa", thanks: "Xizmatdan foydalanganingiz uchun rahmat!" },
-    ru: { title: "ТАЛОН ОЧЕРЕДИ",   service: "УСЛУГА",  window: "КАБИНЕТ", wait: "ВРЕМЯ ОЖИДАНИЯ", min: "минут",  thanks: "Спасибо за обращение!" },
-    en: { title: "QUEUE TICKET",    service: "SERVICE", window: "WINDOW",  wait: "EST. WAIT TIME", min: "minutes",thanks: "Thank you for your visit!" },
-  }[lang] ?? { title: "QUEUE TICKET", service: "SERVICE", window: "WINDOW", wait: "EST. WAIT TIME", min: "minutes", thanks: "Thank you for your visit!" };
+    uz: { serviceLabel: "Xizmat turi:", before: "Sizdan oldingi navbat:", ta: "ta" },
+    ru: { serviceLabel: "Тип услуги:", before: "Перед вами в очереди:", ta: "чел." },
+    en: { serviceLabel: "Service type:", before: "People before you:", ta: "" },
+  }[lang] ?? { serviceLabel: "Xizmat turi:", before: "Sizdan oldingi navbat:", ta: "ta" };
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const timeStr = now.toLocaleTimeString(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const beforeCount = position != null ? Math.max(0, position - 1) : null;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:72mm;margin:0;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:4mm 2mm 5mm}
-.org{font-size:5mm;font-weight:900;letter-spacing:0.5mm;text-transform:uppercase;text-align:center;margin-bottom:1mm;word-break:break-word;color:#000}
-.title{font-size:3mm;font-weight:700;text-align:center;letter-spacing:1mm;text-transform:uppercase;color:#000;margin-bottom:3mm}
-.hr-solid{border:none;border-top:0.6mm solid #000;margin:2.5mm 0}
-.hr-dash{border:none;border-top:0.4mm dashed #000;margin:2.5mm 0}
-.ticket-num{font-size:22mm;font-weight:900;text-align:center;letter-spacing:1.5mm;line-height:1;color:#000;margin:2mm 0 3mm}
-.box{border:0.6mm solid #000;padding:2mm 3mm;margin:2mm 0;text-align:center}
-.box-lbl{font-size:2.5mm;font-weight:700;letter-spacing:0.8mm;text-transform:uppercase;color:#000;margin-bottom:1mm}
-.box-val{font-size:5mm;font-weight:900;color:#000;word-break:break-word}
-.info-row{display:flex;justify-content:space-between;align-items:center;font-size:3.2mm;font-weight:700;padding:1.5mm 0;color:#000}
-.info-lbl{text-transform:uppercase;letter-spacing:0.3mm;color:#000;font-weight:700}
-.info-val{font-weight:900;text-align:right;color:#000}
-.thanks{text-align:center;font-size:3.5mm;font-weight:900;color:#000;padding:3mm 0 1.5mm}
-.brand{text-align:center;font-size:3mm;font-weight:700;color:#000;letter-spacing:0.5mm;margin-top:1mm}
-.datetime{text-align:center;font-size:3mm;font-weight:700;color:#000;margin-top:1.5mm;letter-spacing:0.3mm}
+html,body{width:72mm;margin:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:2mm 2mm 2mm}
+.outer{border:0.5mm dashed #000;padding:4mm 4mm 5mm;width:100%}
+.org{font-size:5mm;font-weight:900;text-align:center;margin-bottom:5mm;word-break:break-word;color:#000;line-height:1.3}
+.ticket-num{font-size:28mm;font-weight:900;text-align:center;letter-spacing:1mm;line-height:1;color:#000;margin:3mm 0 4mm}
+.service-label{font-size:3.5mm;text-align:center;color:#000;margin-bottom:2mm}
+.service-box{border:0.5mm solid #000;padding:2.5mm 3mm;text-align:center;margin-bottom:5mm}
+.service-name{font-size:5.5mm;font-weight:900;color:#000}
+.before{font-size:4.5mm;text-align:center;color:#000;margin-bottom:5mm}
+.before strong{font-weight:900}
+.divider{border:none;border-top:0.6mm solid #000;margin:0 0 3mm}
+.datetime{display:flex;justify-content:space-between;font-size:4mm;font-style:italic;color:#000;font-weight:700}
 @page{size:72mm auto;margin:0}
 @media print{html,body{width:72mm;margin:0}}
 </style></head><body>
-<div class="org">${branchName || "Qubit QMS"}</div>
-<div class="title">${L.title}</div>
-<div class="hr-solid"></div>
-<div class="ticket-num">${ticketNumber}</div>
-<div class="hr-dash"></div>
-<div class="box"><div class="box-lbl">${L.service}</div><div class="box-val">${qName}</div></div>
-${cName ? `<div class="box"><div class="box-lbl">${L.window}</div><div class="box-val">${cName}</div></div>` : ""}
-${estimatedWaitMins != null ? `<div class="hr-dash"></div><div class="info-row"><span class="info-lbl">${L.wait}</span><span class="info-val">~${estimatedWaitMins} ${L.min}</span></div>` : ""}
-<div class="hr-solid"></div>
-<div class="thanks">${L.thanks}</div>
-<div class="brand">Qubit QMS</div>
-<div class="datetime">${dateStr} &nbsp; ${timeStr}</div>
+<div class="outer">
+  <div class="org">${branchName || "Qubit QMS"}</div>
+  <div class="ticket-num">${ticketNumber}</div>
+  <div class="service-label">${L.serviceLabel}</div>
+  <div class="service-box"><div class="service-name">${qName}</div></div>
+  ${beforeCount != null ? `<div class="before">${L.before} <strong>${beforeCount} ${L.ta}</strong></div>` : ""}
+  <hr class="divider"/>
+  <div class="datetime"><span>${dateStr}</span><span>${timeStr}</span></div>
+</div>
 </body></html>`;
 }
 function centerLine(value: string, width = 32): string {
