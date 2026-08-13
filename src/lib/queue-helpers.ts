@@ -262,7 +262,6 @@ return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=640"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html{font-size:16px}
 html,body{
   width:640px;
   background:#fff;
@@ -271,71 +270,63 @@ html,body{
   -webkit-print-color-adjust:exact;
   print-color-adjust:exact;
 }
-body{padding:32px 40px 40px}
+body{padding:24px 28px 32px}
 
 .org{
-  font-size:28px;
+  font-size:26px;
   font-weight:900;
   letter-spacing:2px;
   text-transform:uppercase;
   text-align:center;
-  margin-bottom:6px;
+  margin-bottom:4px;
   word-break:break-word;
   color:#000;
 }
 .title{
+  font-size:15px;
+  font-weight:700;
+  text-align:center;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:#000;
+  margin-bottom:16px;
+}
+.hr-solid{border:none;border-top:2.5px solid #000;margin:14px 0}
+.hr-dash{border:none;border-top:2px dashed #000;margin:14px 0}
+.pos-label{
   font-size:16px;
   font-weight:700;
   text-align:center;
   letter-spacing:3px;
   text-transform:uppercase;
   color:#000;
-  margin-bottom:20px;
-}
-.hr-solid{
-  border:none;
-  border-top:2.5px solid #000;
-  margin:16px 0;
-}
-.hr-dash{
-  border:none;
-  border-top:2px dashed #000;
-  margin:16px 0;
-}
-.pos-label{
-  font-size:18px;
-  font-weight:700;
-  text-align:center;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  color:#000;
-  margin-bottom:8px;
+  margin-bottom:6px;
 }
 .ticket-num{
-  font-size:130px;
+  font-size:120px;
   font-weight:900;
   text-align:center;
   letter-spacing:6px;
   line-height:1;
   color:#000;
-  margin:12px 0 20px;
+  margin:10px 0 16px;
 }
 .box{
   border:3px solid #000;
-  padding:12px 16px;
-  margin:12px 0;
+  padding:10px 14px;
+  margin:10px 0;
   text-align:center;
 }
 .box-lbl{
-  font-size:14px;
+  font-size:13px;
   font-weight:700;
   letter-spacing:2px;
   text-transform:uppercase;
   color:#000;
-  margin-bottom:6px;
+  margin-bottom:5px;
 }
 .box-val{
-  font-size:26px;
+  font-size:24px;
   font-weight:900;
   color:#000;
   word-break:break-word;
@@ -344,52 +335,40 @@ body{padding:32px 40px 40px}
   display:flex;
   justify-content:space-between;
   align-items:center;
-  font-size:18px;
+  font-size:17px;
   font-weight:700;
-  padding:10px 0;
+  padding:9px 0;
   border-bottom:1.5px solid #000;
   color:#000;
 }
 .info-row:last-child{border-bottom:none}
-.info-lbl{
-  text-transform:uppercase;
-  letter-spacing:1px;
-  color:#000;
-  font-weight:700;
-}
-.info-val{
-  font-weight:900;
-  text-align:right;
-  color:#000;
-}
+.info-lbl{text-transform:uppercase;letter-spacing:1px;color:#000;font-weight:700}
+.info-val{font-weight:900;text-align:right;color:#000}
 .thanks{
   text-align:center;
-  font-size:20px;
+  font-size:18px;
   font-weight:900;
   color:#000;
-  padding:16px 0 8px;
-  letter-spacing:0.5px;
+  padding:14px 0 6px;
 }
 .brand{
   text-align:center;
-  font-size:15px;
+  font-size:14px;
   font-weight:700;
   color:#000;
   letter-spacing:2px;
-  margin-top:6px;
+  margin-top:5px;
 }
 .datetime{
   text-align:center;
-  font-size:15px;
+  font-size:14px;
   font-weight:700;
   color:#000;
-  margin-top:10px;
+  margin-top:8px;
   letter-spacing:1px;
 }
-@page{size:640px auto;margin:0}
-@media print{
-  html,body{width:640px}
-}
+@page{size:80mm auto;margin:0}
+@media print{html,body{width:640px}}
 </style></head><body>
 
 <div class="org">${branchName || "Qubit QMS"}</div>
