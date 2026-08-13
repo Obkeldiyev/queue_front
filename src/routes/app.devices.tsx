@@ -80,6 +80,19 @@ async function downloadKioskConfig(url: string, deviceId: string) {
   }
 }
 
+function downloadKioskConfigLocal(url: string, deviceId: string) {
+  const config = { kioskUrl: url, printerName: "w80", fullscreen: true };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `kiosk-config-${deviceId.slice(0, 8)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  toast.success("Kiosk config downloaded (local)");
+}
+
 function Devices() {
   const { user } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
@@ -152,17 +165,30 @@ function Devices() {
                 {isKioskDevice(created.device_type) && (
                   <div className="rounded-lg border bg-muted/40 p-2.5">
                     <p className="mb-2 text-xs text-muted-foreground">For the Windows kiosk EXE, place this file next to the EXE and rename it to <code>kiosk-config.json</code>.</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full gap-1.5"
-                      onClick={() => {
-                        const url = buildDeviceLink("kiosk", created.branch_id, created.id);
-                        downloadKioskConfig(url, created.id);
-                      }}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download EXE config
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          const url = buildDeviceLink("kiosk", created.branch_id, created.id);
+                          downloadKioskConfig(url, created.id);
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download EXE config
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="gap-1.5"
+                        onClick={() => {
+                          const url = buildDeviceLink("kiosk", created.branch_id, created.id);
+                          downloadKioskConfigLocal(url, created.id);
+                        }}
+                      >
+                        JSON
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {created.auth_token && (
@@ -247,14 +273,17 @@ function Devices() {
                     <QrCode className="h-3.5 w-3.5" />Open &amp; Pair
                   </Button>
                   {isKioskDevice(d.device_type) && launchLinks[0] && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full gap-1.5"
-                      onClick={() => downloadKioskConfig(launchLinks[0].url, d.id)}
-                    >
-                      <Download className="h-3.5 w-3.5" />Download EXE config
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5"
+                        onClick={() => downloadKioskConfig(launchLinks[0].url, d.id)}
+                      >
+                        <Download className="h-3.5 w-3.5" />Download EXE config
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => downloadKioskConfigLocal(launchLinks[0].url, d.id)}>JSON</Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
