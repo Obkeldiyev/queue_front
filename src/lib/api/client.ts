@@ -1,15 +1,20 @@
-// Detect API URL — prefer env var, fall back to window.location origin
+// Detect API URL — prefer env var, fall back to window.location origin.
+// Called lazily inside each request so it always runs client-side with the
+// correct window.location (avoids SSR returning a relative "/api" string
+// that then fails in Electron where there's no proxy to rewrite it).
 function getBaseUrl(): string {
-  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL as string;
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (envUrl && !envUrl.startsWith("/")) {
+    // Already an absolute URL (e.g. https://example.com/api)
+    return envUrl;
   }
   if (typeof window !== "undefined") {
-    return `${window.location.origin}/api`;
+    // Use current page origin so the port is always included (:8095, etc.)
+    const path = envUrl ?? "/api";
+    return `${window.location.origin}${path}`;
   }
-  return "/api";
+  return envUrl ?? "/api";
 }
-
-const BASE_URL = getBaseUrl();
 
 async function fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -56,7 +61,7 @@ async function tryRefresh(): Promise<boolean> {
   const refreshToken = getStoredToken("qms_refresh_token");
   if (!refreshToken) return false;
   try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+    const res = await fetch(`${getBaseUrl()}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -106,7 +111,7 @@ export async function apiRequest<T = unknown>(
       ...(options.headers as Record<string, string> | undefined),
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    return fetchWithTimeout(`${BASE_URL}${path}`, { ...options, headers });
+    return fetchWithTimeout(`${getBaseUrl()}${path}`, { ...options, headers });
   };
 
   let res: Response;
