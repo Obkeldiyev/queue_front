@@ -111,6 +111,19 @@ function OperatorView() {
   const queueIds = rawQueueGroups.map((cq) => cq.queue_group?.id ?? "").filter(Boolean);
   const counterQueueNames = rawQueueGroups.map((cq) => cq.queue_group?.name_uz ?? "").filter(Boolean);
 
+  // If the operator has allowed_service_ids, filter counter queue groups to only those services
+  const operatorAllowedServiceIdsRaw = user && (user as any).allowed_service_ids;
+  const operatorAllowedServiceIds: string[] | null = operatorAllowedServiceIdsRaw
+    ? (Array.isArray(operatorAllowedServiceIdsRaw) ? operatorAllowedServiceIdsRaw : JSON.parse(String(operatorAllowedServiceIdsRaw)))
+    : null;
+
+  const effectiveQueueIds = operatorAllowedServiceIds && operatorAllowedServiceIds.length > 0
+    ? rawQueueGroups
+        .filter((cq) => operatorAllowedServiceIds?.includes(cq.queue_group?.service?.id ?? ""))
+        .map((cq) => cq.queue_group?.id ?? "")
+        .filter(Boolean)
+    : queueIds;
+
   // ── Waiting tickets ───────────────────────────────────────────────────────
   const { data: waitingTickets = [] } = useQuery({
     queryKey: ["tickets", branchId, "WAITING"],
