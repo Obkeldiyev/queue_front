@@ -260,10 +260,10 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const beforeCount = position != null ? Math.max(0, position - 1) : null;
 
-  // Resolve logo URL — if relative path, prefix with the API origin
-  const resolvedLogo = logoUrl
-    ? (logoUrl.startsWith("http") ? logoUrl : `https://xnavbat.polito.uz${logoUrl.startsWith("/") ? "" : "/"}${logoUrl}`)
-    : null;
+  // Always use the static logo.png from /public — fall back to company API logo if provided
+  const resolvedLogo = logoUrl && logoUrl.startsWith("http")
+    ? logoUrl
+    : `https://xnavbat.polito.uz/logo.png`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
@@ -271,10 +271,8 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
 html,body{width:68mm;margin:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{padding:2mm 1.5mm 2mm}
 .outer{border:0.5mm dashed #000;padding:3.5mm 3.5mm 4mm;width:100%}
-.header{display:flex;align-items:center;gap:2.5mm;margin-bottom:4mm}
-.logo{width:13mm;height:13mm;object-fit:contain;flex-shrink:0}
-.header-text{flex:1;min-width:0}
-.org{font-size:4mm;font-weight:900;color:#000;line-height:1.2;word-break:break-word}
+.logo-wrap{text-align:center;margin-bottom:3mm}
+.logo{max-width:40mm;max-height:18mm;object-fit:contain}
 .ticket-num{font-size:20mm;font-weight:900;text-align:center;letter-spacing:0.5mm;line-height:1;color:#000;margin:2.5mm 0 3mm}
 .service-label{font-size:3.2mm;text-align:center;color:#000;margin-bottom:1.5mm}
 .service-box{border:0.5mm solid #000;padding:2mm 2.5mm;text-align:center;margin-bottom:4mm}
@@ -287,11 +285,8 @@ body{padding:2mm 1.5mm 2mm}
 @media print{html,body{width:68mm;margin:0}}
 </style></head><body>
 <div class="outer">
-  <div class="header">
-    ${resolvedLogo ? `<img class="logo" src="${resolvedLogo}" alt="logo"/>` : ""}
-    <div class="header-text">
-      <div class="org">${branchName || "Qubit QMS"}</div>
-    </div>
+  <div class="logo-wrap">
+    <img class="logo" src="${resolvedLogo}" alt="logo" onerror="this.style.display='none'"/>
   </div>
   <div class="ticket-num">${ticketNumber}</div>
   <div class="service-label">${L.serviceLabel}</div>
