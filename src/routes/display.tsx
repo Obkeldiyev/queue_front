@@ -219,10 +219,8 @@ function DisplayView() {
             </div>
           </div>
 
-          {/* Center: system name */}
-          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "0.08em", color: "#94a3b8", textTransform: "uppercase" }}>
-            XNAVBAT QUEUE SYSTEM
-          </div>
+          {/* Center: empty */}
+          <div />
 
           {/* Right: clock + lang */}
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
