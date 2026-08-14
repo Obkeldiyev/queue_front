@@ -5,6 +5,7 @@ export interface Employee {
   company_id: string;
   branch_id?: string;
   default_counter_id?: string;
+  allowed_service_ids?: string[] | null;
   first_name: string;
   last_name: string;
   email: string;

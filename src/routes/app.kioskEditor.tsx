@@ -96,6 +96,13 @@ function KioskEditor() {
       if (!companyId) throw new Error("No company selected");
       const payload = { theme: kioskTheme, displayTheme, components };
       localStorage.setItem(`kiosk_settings_${companyId}`, JSON.stringify(payload));
+      // Dispatch storage event so kiosk/display pages on the same origin
+      // pick up the theme change immediately without a reload
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: `kiosk_settings_${companyId}`,
+        newValue: JSON.stringify(payload),
+        storageArea: localStorage,
+      }));
       await companiesApi.update(companyId, { settings: payload });
       if (targetDevice === "all") {
         await Promise.all(devices.map((d) => devicesApi.update(d.id, { settings: payload })));

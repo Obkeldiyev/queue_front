@@ -4,7 +4,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { requireCompanyAdmin } from "@/lib/guards";
 import { useStore } from "@/lib/store";
 import { useLang, loc } from "@/lib/i18n";
-import { employeesApi, branchesApi, countersApi } from "@/lib/api";
+import { employeesApi, branchesApi, countersApi, queuesApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
-import { Plus, Trash2, Users, ShieldCheck, UserCog, Monitor, Hash, KeyRound } from "lucide-react";
+import { Plus, Trash2, Users, ShieldCheck, UserCog, Monitor, Hash, KeyRound, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/employees")({
@@ -54,6 +55,13 @@ function Employees() {
         company_id: companyId,
         ...(currentBranchId && { branch_id: currentBranchId }),
       }).then((r) => r.data),
+    enabled: !!companyId,
+  });
+
+  // All queue groups (services) for the company — used to restrict operator access
+  const { data: allQueues = [] } = useQuery({
+    queryKey: ["queues-employees", companyId],
+    queryFn: () => queuesApi.list({ company_id: companyId }).then((r) => r.data),
     enabled: !!companyId,
   });
 
@@ -299,6 +307,7 @@ function Employees() {
                 <TableHead>Role</TableHead>
                 <TableHead>Window #</TableHead>
                 <TableHead>Counter / Room</TableHead>
+                <TableHead>Services</TableHead>
                 <TableHead>Last login</TableHead>
                 <TableHead />
               </TableRow>
@@ -420,10 +429,24 @@ function Employees() {
                       )}
                     </TableCell>
 
+                    {/* Service restriction — only for operators */}
+                    <TableCell>
+                      {isOperator ? (
+                        <ServiceRestrictCell
+                          employeeId={e.id}
+                          currentIds={(e.allowed_service_ids as string[] | null) ?? null}
+                          allQueues={allQueues as import("@/lib/api").QueueGroup[]}
+                          lang={lang as import("@/lib/i18n").Lang}
+                          onSave={(ids) => updateMutation.mutate({ id: e.id, data: { allowed_service_ids: ids } })}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {e.last_login_at ? new Date(e.last_login_at).toLocaleDateString() : "Never"}
-                    </TableCell>
-                    <TableCell>
+                    </TableCell>                    <TableCell>
                       <div className="flex items-center gap-1">
                         <ResetPasswordButton
                           onReset={(pwd) => resetPasswordMutation.mutate({ id: e.id, password: pwd })}
@@ -533,3 +556,128 @@ function ResetPasswordButton({ onReset, isPending }: { onReset: (pwd: string) =>
   );
 }
 
+
+// ── Service restriction picker ────────────────────────────────────────────────
+// Admin uses this to limit which queue groups an operator can call tickets from.
+interface ServiceRestrictCellProps {
+  employeeId: string;
+  currentIds: string[] | null;
+  allQueues: import("@/lib/api").QueueGroup[];
+  lang: import("@/lib/i18n").Lang;
+  onSave: (ids: string[] | null) => void;
+}
+
+function ServiceRestrictCell({ currentIds, allQueues, lang, onSave }: ServiceRestrictCellProps) {
+  const [open, setOpen] = useState(false);
+  // null means "all services allowed"; empty array means "none"
+  const isRestricted = currentIds !== null;
+  const [restricted, setRestricted] = useState(isRestricted);
+  const [selected, setSelected] = useState<Set<string>>(new Set(currentIds ?? []));
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const save = () => {
+    onSave(restricted ? Array.from(selected) : null);
+    setOpen(false);
+  };
+
+  const label = !isRestricted
+    ? <span className="text-xs text-muted-foreground italic">All services</span>
+    : currentIds!.length === 0
+      ? <span className="text-xs text-amber-600">None assigned</span>
+      : (
+        <div className="flex flex-wrap gap-1 max-w-[160px]">
+          {currentIds!.slice(0, 2).map((id) => {
+            const q = allQueues.find((q) => q.id === id);
+            return q ? (
+              <Badge key={id} variant="secondary" className="text-[10px] px-1.5">
+                {loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz}
+              </Badge>
+            ) : null;
+          })}
+          {currentIds!.length > 2 && (
+            <Badge variant="outline" className="text-[10px] px-1.5">+{currentIds!.length - 2}</Badge>
+          )}
+        </div>
+      );
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => {
+      if (v) {
+        setRestricted(currentIds !== null);
+        setSelected(new Set(currentIds ?? []));
+      }
+      setOpen(v);
+    }}>
+      <DialogTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded px-2 py-1 hover:bg-muted transition text-left" title="Set allowed services">
+          <ListChecks className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          {label}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Allowed services</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Restrict which queue services this operator can call tickets from. Leave unrestricted to allow all.
+        </p>
+
+        {/* Toggle restriction */}
+        <div className="flex items-center gap-3 rounded-lg border p-3">
+          <Checkbox
+            id="restrict-toggle"
+            checked={restricted}
+            onCheckedChange={(v) => { setRestricted(!!v); if (!v) setSelected(new Set()); }}
+          />
+          <label htmlFor="restrict-toggle" className="text-sm font-medium cursor-pointer select-none">
+            Restrict to specific services
+          </label>
+        </div>
+
+        {/* Service checkboxes */}
+        {restricted && (
+          <div className="max-h-60 overflow-y-auto space-y-1 rounded-lg border p-3">
+            {allQueues.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No queue groups found</p>
+            ) : (
+              allQueues.map((q) => {
+                const name = loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz;
+                return (
+                  <div key={q.id} className="flex items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted cursor-pointer"
+                    onClick={() => toggle(q.id)}>
+                    <Checkbox
+                      id={`svc-${q.id}`}
+                      checked={selected.has(q.id)}
+                      onCheckedChange={() => toggle(q.id)}
+                    />
+                    <label htmlFor={`svc-${q.id}`} className="text-sm cursor-pointer select-none flex-1">
+                      {name}
+                    </label>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {restricted && selected.size === 0 && (
+          <p className="text-xs text-amber-600 px-1">
+            ⚠ No services selected — operator won't be able to call any tickets
+          </p>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={save}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

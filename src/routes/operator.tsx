@@ -119,7 +119,7 @@ function OperatorView() {
 
   const effectiveQueueIds = operatorAllowedServiceIds && operatorAllowedServiceIds.length > 0
     ? rawQueueGroups
-        .filter((cq) => operatorAllowedServiceIds?.includes(cq.queue_group?.service?.id ?? ""))
+        .filter((cq) => operatorAllowedServiceIds?.includes((cq.queue_group?.service as any)?.id ?? ""))
         .map((cq) => cq.queue_group?.id ?? "")
         .filter(Boolean)
     : queueIds;

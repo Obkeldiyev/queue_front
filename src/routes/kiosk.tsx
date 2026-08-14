@@ -53,28 +53,37 @@ function KioskPage() {
     if (b) setBranchId(b);
     if (d) setDeviceId(d);
 
-    // Load settings
+    // Load settings — always check both sources so theme stays in sync
+    // even when the admin updates settings from the KioskEditor
     void (async () => {
       try {
+        let theme: string | null = null;
+
+        // 1. Check device-specific settings (set by Electron poller or pairing)
         if (d) {
           const raw = localStorage.getItem(`paired_device_${d}`);
           if (raw) {
             const parsed = JSON.parse(raw) as { settings?: { theme?: string } };
-            if (parsed.settings?.theme) setKioskTheme(parsed.settings.theme as "dark" | "light");
-            return;
+            if (parsed.settings?.theme) theme = parsed.settings.theme;
           }
         }
+
+        // 2. Always also check company-level settings (set by KioskEditor save)
+        //    This ensures Chrome kiosk pages pick up theme changes immediately
         if (b) {
           const branch = await branchesApi.get(b).then((r) => r.data);
           if (branch?.company_id) {
+            // Check localStorage first (fastest)
             const raw = localStorage.getItem(`kiosk_settings_${branch.company_id}`);
             if (raw) {
               const s = JSON.parse(raw) as { theme?: string; settings?: { theme?: string } };
-              const theme = s.theme ?? s.settings?.theme;
-              if (theme) setKioskTheme(theme as "dark" | "light");
+              const t2 = s.theme ?? s.settings?.theme;
+              if (t2) theme = t2; // company settings override device if both exist
             }
           }
         }
+
+        if (theme) setKioskTheme(theme as "dark" | "light");
       } catch { /* ignore */ }
     })();
 
@@ -88,7 +97,21 @@ function KioskPage() {
       void qc.invalidateQueries({ queryKey: ["queues-kiosk"] });
     };
     window.addEventListener("qubit:settings-changed", onSettingsChanged);
-    return () => window.removeEventListener("qubit:settings-changed", onSettingsChanged);
+
+    // Listen for KioskEditor saves on the same browser origin (storage event)
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key?.startsWith("kiosk_settings_") || !e.newValue) return;
+      try {
+        const s = JSON.parse(e.newValue) as { theme?: string };
+        if (s.theme) setKioskTheme(s.theme as "dark" | "light");
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("qubit:settings-changed", onSettingsChanged);
+      window.removeEventListener("storage", onStorage);
+    };
   }, [qc]);
 
   // ── Data ──────────────────────────────────────────────────────────────────
