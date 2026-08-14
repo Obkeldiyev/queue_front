@@ -207,15 +207,14 @@ function DisplayView() {
         }}>
           {/* Left: logo + org */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-            {logoUrl ? (
-              <img src={logoUrl.startsWith("http") ? logoUrl : `https://xnavbat.polito.uz${logoUrl}`}
-                alt="logo" style={{ width: 52, height: 52, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 4, flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 52, height: 52, borderRadius: 12, background: "#0ea5e9", display: "grid", placeItems: "center", fontSize: 26, fontWeight: 900, flexShrink: 0 }}>Q</div>
-            )}
+            <img
+              src="/logo.png"
+              alt="logo"
+              style={{ width: 52, height: 52, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 4, flexShrink: 0 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
             <div>
               <div style={{ fontSize: 20, fontWeight: 900, lineHeight: 1.2, color: "#f8fafc" }}>{branchName}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>Qubit QMS</div>
             </div>
           </div>
 
