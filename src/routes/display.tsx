@@ -245,7 +245,7 @@ function DisplayView() {
         </header>
 
         {/* ── MAIN PANELS ─────────────────────────────────────────── */}
-        <main style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, flex: 1, minHeight: 0 }}>
+        <main style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, flex: 1, minHeight: 0 }}>
 
           {/* LEFT — SERVING */}
           <section style={{
@@ -253,7 +253,7 @@ function DisplayView() {
             borderRadius: 24, padding: "24px 28px", display: "flex", flexDirection: "column",
             minHeight: 0,
           }}>
-            <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: "0.1em", color: "#0369a1", marginBottom: 20 }}>
+            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "0.1em", color: "#0369a1", marginBottom: 20 }}>
               {SERVING_LBL}
             </div>
 
@@ -262,7 +262,7 @@ function DisplayView() {
                 <div style={{ fontSize: 22, fontWeight: 700 }}>{EMPTY_LBL}</div>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1, overflow: "hidden" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden" }}>
                 {servingRows.map((ticket) => {
                   const counter = getCounter(ticket.counter_id);
                   const counterLabel = counter?.number
@@ -270,27 +270,28 @@ function DisplayView() {
                     : (counter ? (loc(counter as unknown as Record<string, unknown>, "name", lang) || counter.name_uz) : "");
                   return (
                     <div key={ticket.id} style={{
-                      display: "flex", alignItems: "center", gap: 16,
-                      background: "rgba(255,255,255,.55)", borderRadius: 18,
-                      padding: "14px 20px",
+                      display: "flex", alignItems: "center", gap: 12,
+                      background: "rgba(255,255,255,.60)", borderRadius: 16,
+                      padding: "12px 16px",
                       backdropFilter: "blur(8px)",
+                      flex: "0 0 auto",
                     }}>
                       {/* Ticket number */}
                       <div style={{
-                        background: ticketBg, color: "#f8fafc", borderRadius: 14,
-                        padding: "10px 22px", fontSize: 32, fontWeight: 900,
+                        background: ticketBg, color: "#f8fafc", borderRadius: 12,
+                        padding: "10px 18px", fontSize: 36, fontWeight: 900,
                         letterSpacing: "0.04em", flexShrink: 0, minWidth: 110, textAlign: "center",
                       }}>
                         {ticket.ticket_number}
                       </div>
 
                       {/* Arrow */}
-                      <div style={{ fontSize: 28, fontWeight: 900, color: "#0369a1", flexShrink: 0 }}>›</div>
+                      <div style={{ fontSize: 32, fontWeight: 900, color: "#0369a1", flexShrink: 0 }}>›</div>
 
                       {/* Window */}
                       <div style={{
-                        flex: 1, background: windowBg, color: "#fff", borderRadius: 14,
-                        padding: "10px 22px", fontSize: 28, fontWeight: 900,
+                        flex: 1, background: windowBg, color: "#fff", borderRadius: 12,
+                        padding: "10px 18px", fontSize: 32, fontWeight: 900,
                         textAlign: "center", textTransform: "uppercase",
                       }}>
                         {counterLabel}
@@ -309,11 +310,11 @@ function DisplayView() {
             minHeight: 0,
           }}>
             {/* Header row */}
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: "0.1em", color: "#38bdf8" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "0.1em", color: "#38bdf8" }}>
                 {WAITING_LBL}
               </div>
-              <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1, color: "#64748b" }}>
+              <div style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: "#64748b" }}>
                 {waiting.length}
               </div>
             </div>
@@ -321,7 +322,7 @@ function DisplayView() {
             {/* 3-column grid */}
             {waiting.length === 0 ? (
               <div style={{ flex: 1, display: "grid", placeItems: "center", color: "#64748b", textAlign: "center" }}>
-                <div style={{ fontSize: 52, fontWeight: 900 }}>0</div>
+                <div style={{ fontSize: 64, fontWeight: 900 }}>0</div>
               </div>
             ) : (
               <div style={{
@@ -330,10 +331,10 @@ function DisplayView() {
               }}>
                 {waiting.map((ticket) => (
                   <div key={ticket.id} style={{
-                    background: waitGrid, borderRadius: 16,
+                    background: waitGrid, borderRadius: 14,
                     display: "grid", placeItems: "center",
-                    padding: "16px 8px",
-                    fontSize: 28, fontWeight: 900, letterSpacing: "0.03em",
+                    padding: "18px 8px",
+                    fontSize: 34, fontWeight: 900, letterSpacing: "0.03em",
                     color: "#f8fafc",
                   }}>
                     {ticket.ticket_number}

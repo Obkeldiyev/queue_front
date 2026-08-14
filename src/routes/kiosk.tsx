@@ -334,7 +334,9 @@ function KioskPage() {
           )}
           {currentMenuParent ? (
             <h1 className="text-4xl font-black tracking-tight">
-              {currentMenuParent.label || currentMenuParent.name}
+              {loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang)
+                || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang)
+                || currentMenuParent.label || currentMenuParent.name}
             </h1>
           ) : (
             <>
