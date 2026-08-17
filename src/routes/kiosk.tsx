@@ -323,7 +323,7 @@ function KioskPage() {
       {menuStack.length > 0 && (
         <button
           onClick={() => setMenuStack((s) => s.slice(0, -1))}
-          className={`absolute left-4 top-4 z-10 flex items-center gap-2 rounded-2xl px-5 py-3 text-base font-bold transition shadow-md ${isDark ? "bg-white/15 hover:bg-white/25 text-white border border-white/20" : "bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 shadow-sm"}`}
+          className={`absolute left-5 top-5 z-10 flex items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
         >
           <ChevronLeft className="h-5 w-5" />
           {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
@@ -331,7 +331,7 @@ function KioskPage() {
       )}
 
       {/* ── HEADER ── */}
-      <div className="flex flex-col items-center pt-6 pb-4 px-6">
+      <div className="flex flex-col items-center pt-6 pb-4 px-8">
         <img
           src="/logo.png"
           alt="logo"
@@ -354,7 +354,7 @@ function KioskPage() {
       </div>
 
       {/* ── CONTENT fills screen ── */}
-      <div className="flex-1 px-6 pb-6 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
+      <div className="flex-1 px-8 pb-8 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
 
         {/* ── MENU MODE ── */}
         {hasMenus && (
