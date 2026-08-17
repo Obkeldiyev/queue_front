@@ -319,19 +319,20 @@ function KioskPage() {
         ))}
       </div>
 
-      {/* Back button */}
-      {menuStack.length > 0 && (
-        <button
-          onClick={() => setMenuStack((s) => s.slice(0, -1))}
-          className={`absolute left-5 top-5 z-10 flex items-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
-        >
-          <ChevronLeft className="h-5 w-5" />
-          {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
-        </button>
-      )}
-
       {/* ── HEADER ── */}
       <div className="flex flex-col items-center pt-6 pb-4 px-8">
+        {/* Back button row — only shown inside a submenu */}
+        {menuStack.length > 0 && (
+          <div className="w-full max-w-4xl mb-3">
+            <button
+              onClick={() => setMenuStack((s) => s.slice(0, -1))}
+              className={`flex items-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
+            >
+              <ChevronLeft className="h-5 w-5" />
+              {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
+            </button>
+          </div>
+        )}
         <img
           src="/logo.png"
           alt="logo"
