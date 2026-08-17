@@ -206,18 +206,18 @@ function KioskPage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [issuedTicket]);
 
-  // ── Colors ────────────────────────────────────────────────────────────────
-  const BG     = isDark ? "#07111f" : "#f1f5f9";
-  const HEADER = isDark ? "#0d1b2f" : "#1e293b";
-  const CARD_BG = isDark ? "#0d1b2f" : "#ffffff";
-  const CARD_BORDER = isDark ? "rgba(148,163,184,.15)" : "#e2e8f0";
-  const CARD_TEXT = isDark ? "#f8fafc" : "#0f172a";
-  const TITLE_COLOR = isDark ? "#f8fafc" : "#0f172a";
-  const FOOTER_BG = isDark ? "#0d1b2f" : "#1e293b";
-  const LANG_ACTIVE = isDark ? "#e0f2fe" : "#0284c7";
-  const LANG_ACTIVE_TEXT = isDark ? "#0369a1" : "#ffffff";
+  // ── Colors — always dark navy to match the design reference ─────────────
+  const BG      = "#07111f";
+  const HEADER  = "#0d1b2f";
+  const CARD_BG = "#ffffff";
+  const CARD_BORDER = "rgba(255,255,255,.15)";
+  const CARD_TEXT = "#0d1b2f";
+  const TITLE_COLOR = "#f8fafc";
+  const FOOTER_BG = "#0d1b2f";
+  const LANG_ACTIVE = "#0ea5e9";
+  const LANG_ACTIVE_TEXT = "#ffffff";
   const LANG_INACTIVE = "transparent";
-  const LANG_INACTIVE_TEXT = isDark ? "#94a3b8" : "#94a3b8";
+  const LANG_INACTIVE_TEXT = "#94a3b8";
 
   // ── Date / time ───────────────────────────────────────────────────────────
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -349,8 +349,8 @@ function KioskPage() {
           onClick={() => setMenuStack((s) => s.slice(0, -1))}
           style={{
             width: "100%", border: "none", cursor: "pointer",
-            background: isDark ? "rgba(14,165,233,.18)" : "#0284c7",
-            color: isDark ? "#38bdf8" : "#ffffff",
+            background: "rgba(14,165,233,.18)",
+            color: "#38bdf8",
             padding: "16px 28px",
             fontSize: 20, fontWeight: 800,
             display: "flex", alignItems: "center", gap: 12,
@@ -416,7 +416,7 @@ function KioskPage() {
                   fontWeight: 700,
                   lineHeight: 1.3,
                   transition: "transform 0.1s, box-shadow 0.1s",
-                  boxShadow: isDark ? "0 4px 24px rgba(0,0,0,.3)" : "0 2px 12px rgba(0,0,0,.08)",
+                  boxShadow: "0 4px 24px rgba(0,0,0,.25)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -429,7 +429,7 @@ function KioskPage() {
               >
                 <span>{itemName}</span>
                 {(isLeaf || !hasMenus) && waitCount > 0 && (
-                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: isDark ? "#38bdf8" : "#0284c7" }}>
+                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: "#0284c7" }}>
                     {waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}
                   </span>
                 )}
