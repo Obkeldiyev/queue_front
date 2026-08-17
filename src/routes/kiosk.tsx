@@ -294,7 +294,8 @@ function KioskPage() {
   }
 
   // ── Determine current menu items to show ──────────────────────────────────
-  const hasMenus = menus.filter((m) => m.is_visible).length > 0; = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
+  const hasMenus = menus.filter((m) => m.is_visible).length > 0;
+  const currentMenuParent = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
 
   // Items at current level — either root or children of current parent
   const currentItems = hasMenus
@@ -358,7 +359,7 @@ function KioskPage() {
         {/* ── MENU MODE ── */}
         {hasMenus && (
           <div className="grid grid-cols-2 gap-5 flex-1" style={{ alignContent: "start" }}>
-            {currentItems.map((item) => {
+            {(currentItems as Menu[]).map((item) => {
               const isLeaf = !!item.queue_group_id;
               const queue = isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : null;
               const waitCount = queue ? (waitingCountByGroup.get(queue.id) ?? 0) : 0;
