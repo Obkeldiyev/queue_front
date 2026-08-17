@@ -294,12 +294,15 @@ function KioskPage() {
   }
 
   // ── Determine current menu items to show ──────────────────────────────────
-  const hasMenus = menus.filter((m) => m.is_visible).length > 0;
-  const currentMenuParent = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
+  const hasMenus = menus.filter((m) => m.is_visible).length > 0; = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
 
-  // Items at current level
+  // Items at current level — either root or children of current parent
   const currentItems = hasMenus
-    ? menus.filter((m) => m.is_visible && (m.parent_id ?? null) === (currentMenuParent?.id ?? null))
+    ? currentMenuParent
+      // Children are nested on the parent object itself
+      ? ((currentMenuParent as any).children ?? []).filter((m: Menu) => m.is_visible)
+      // Root level
+      : menus.filter((m) => m.is_visible && (m.parent_id ?? null) === null)
     : [];
 
   // Main render
