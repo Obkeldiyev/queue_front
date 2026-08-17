@@ -318,14 +318,11 @@ function KioskPage() {
 
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "12px 28px", flexShrink: 0 }}>
-        {/* Logo + org name */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src="/logo.png" alt="logo"
-            style={{ height: 56, width: "auto", objectFit: "contain", background: "#fff", borderRadius: 10, padding: 4 }}
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
+            style={{ height: 64, width: "auto", objectFit: "contain" }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#94a3b8", lineHeight: 1.3, maxWidth: 260 }}>
-            {loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as any)?.name_uz || ""}
-          </div>
         </div>
 
         {/* Language switcher */}
