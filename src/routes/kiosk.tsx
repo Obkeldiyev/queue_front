@@ -312,7 +312,7 @@ function KioskPage() {
 
   const titleText = currentMenuParent
     ? (loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang) || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang) || currentMenuParent.label || currentMenuParent.name)
-    : lang === "uz" ? "YO'NALISHNI TANLANG" : lang === "ru" ? "ВЫБЕРИТЕ НАПРАВЛЕНИЕ" : "SELECT DIRECTION";
+    : lang === "uz" ? "Yo'nalishni tanlang" : lang === "ru" ? "Выберите направление" : "Select Direction";
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
@@ -365,11 +365,11 @@ function KioskPage() {
 
       {/* ── TITLE ── */}
       <div style={{ textAlign: "center", padding: "24px 24px 12px", flexShrink: 0 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.08em", color: TITLE_COLOR, margin: 0, textTransform: "uppercase" }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "0.02em", color: TITLE_COLOR, margin: 0 }}>
           {titleText}
         </h1>
         {currentMenuParent && (
-          <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,.65)", fontWeight: 500 }}>
+          <p style={{ margin: "8px 0 0", fontSize: 18, color: "rgba(255,255,255,.8)", fontWeight: 600 }}>
             {lang === "uz" ? "Xizmatni tanlang" : lang === "ru" ? "Выберите услугу" : "Select a service"}
           </p>
         )}
