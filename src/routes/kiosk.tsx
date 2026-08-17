@@ -6,12 +6,9 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
-import { Ticket as TicketIcon, Clock, Hash, Printer, ChevronLeft, ChevronRight, FolderOpen } from "lucide-react";
+import { Printer } from "lucide-react";
 import { toast } from "sonner";
-import {
-  printTicketReceipt,
-  estimateWaitMinutes,
-} from "@/lib/queue-helpers";
+import { printTicketReceipt, estimateWaitMinutes } from "@/lib/queue-helpers";
 import { ClientOnly } from "@/components/ClientOnly";
 
 export const Route = createFileRoute("/kiosk")({
@@ -19,8 +16,8 @@ export const Route = createFileRoute("/kiosk")({
   component: () => (
     <ClientOnly
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+        <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#07111f" }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(255,255,255,.15)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} />
         </div>
       }
     >
@@ -29,6 +26,25 @@ export const Route = createFileRoute("/kiosk")({
   ),
 });
 
+// ── Auto-reset timer hook ──────────────────────────────────────────────────
+function useIdleReset(enabled: boolean, seconds: number, onReset: () => void) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const reset = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(onReset, seconds * 1000);
+    };
+    const events = ["click", "touchstart", "keydown"];
+    events.forEach((e) => window.addEventListener(e, reset));
+    reset(); // start timer immediately
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [enabled, seconds, onReset]);
+}
+
 function KioskPage() {
   const { lang, setLang, t } = useLang();
   const qc = useQueryClient();
@@ -36,16 +52,27 @@ function KioskPage() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [kioskTheme, setKioskTheme] = useState<"dark" | "light">("dark");
   const isDark = kioskTheme !== "light";
+  const [now, setNow] = useState(new Date());
 
-  // issued ticket state
   const [issuedTicket, setIssuedTicket] = useState<Ticket | null>(null);
-  const [countdown, setCountdown] = useState(6);
+  const [countdown, setCountdown] = useState(8);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // menu navigation stack: [] = root, [id] = inside that menu item
   const [menuStack, setMenuStack] = useState<Menu[]>([]);
 
-  // ── Bootstrap ─────────────────────────────────────────────────────────────
+  // Clock
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auto-reset to root after 35s of inactivity when inside a submenu
+  useIdleReset(
+    menuStack.length > 0 && !issuedTicket,
+    35,
+    () => setMenuStack([])
+  );
+
+  // Bootstrap
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
@@ -53,13 +80,9 @@ function KioskPage() {
     if (b) setBranchId(b);
     if (d) setDeviceId(d);
 
-    // Load settings — always check both sources so theme stays in sync
-    // even when the admin updates settings from the KioskEditor
     void (async () => {
       try {
         let theme: string | null = null;
-
-        // 1. Check device-specific settings (set by Electron poller or pairing)
         if (d) {
           const raw = localStorage.getItem(`paired_device_${d}`);
           if (raw) {
@@ -67,38 +90,28 @@ function KioskPage() {
             if (parsed.settings?.theme) theme = parsed.settings.theme;
           }
         }
-
-        // 2. Always also check company-level settings (set by KioskEditor save)
-        //    This ensures Chrome kiosk pages pick up theme changes immediately
         if (b) {
           const branch = await branchesApi.get(b).then((r) => r.data);
           if (branch?.company_id) {
-            // Check localStorage first (fastest)
             const raw = localStorage.getItem(`kiosk_settings_${branch.company_id}`);
             if (raw) {
               const s = JSON.parse(raw) as { theme?: string; settings?: { theme?: string } };
               const t2 = s.theme ?? s.settings?.theme;
-              if (t2) theme = t2; // company settings override device if both exist
+              if (t2) theme = t2;
             }
           }
         }
-
         if (theme) setKioskTheme(theme as "dark" | "light");
       } catch { /* ignore */ }
     })();
 
-    // Listen for settings pushed by the Electron main process (device polling).
-    // This lets the admin change theme/settings without needing a full page reload.
     const onSettingsChanged = (e: Event) => {
       const { settings } = (e as CustomEvent<{ deviceId: string; settings: Record<string, unknown> }>).detail;
       if (settings?.theme) setKioskTheme(settings.theme as "dark" | "light");
-      // Invalidate menus and queues so any content changes appear immediately
       void qc.invalidateQueries({ queryKey: ["menus-kiosk"] });
       void qc.invalidateQueries({ queryKey: ["queues-kiosk"] });
     };
     window.addEventListener("qubit:settings-changed", onSettingsChanged);
-
-    // Listen for KioskEditor saves on the same browser origin (storage event)
     const onStorage = (e: StorageEvent) => {
       if (!e.key?.startsWith("kiosk_settings_") || !e.newValue) return;
       try {
@@ -107,14 +120,12 @@ function KioskPage() {
       } catch { /* ignore */ }
     };
     window.addEventListener("storage", onStorage);
-
     return () => {
       window.removeEventListener("qubit:settings-changed", onSettingsChanged);
       window.removeEventListener("storage", onStorage);
     };
   }, [qc]);
 
-  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: branch } = useQuery({
     queryKey: ["branch", branchId],
     queryFn: () => branchesApi.get(branchId).then((r) => r.data),
@@ -122,7 +133,6 @@ function KioskPage() {
     staleTime: 60_000,
   });
 
-  // Menus (kiosk navigation tree)
   const { data: menus = [] } = useQuery({
     queryKey: ["menus-kiosk", branch?.company_id],
     queryFn: () => menusApi.list({ company_id: branch!.company_id! }).then((r) => r.data),
@@ -131,7 +141,6 @@ function KioskPage() {
     refetchInterval: 60_000,
   });
 
-  // Flat queue list (shown when no menus, or as leaf targets)
   const { data: queues = [] } = useQuery({
     queryKey: ["queues-kiosk", branchId],
     queryFn: () => queuesApi.list({ branch_id: branchId, is_active: "true" }).then((r) => r.data),
@@ -151,36 +160,25 @@ function KioskPage() {
     waitingCountByGroup.set(tk.queue_group_id, (waitingCountByGroup.get(tk.queue_group_id) ?? 0) + 1);
   });
 
-  // WebSocket: refresh waiting counts when tickets are issued or called
   useRealtime({
-    branchId,
-    enabled: !!branchId,
-    onTicketIssued: () => {
-      void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] });
-    },
-    onTicketCalled: () => {
-      void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] });
-    },
+    branchId, enabled: !!branchId,
+    onTicketIssued: () => void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
+    onTicketCalled: () => void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
   });
 
   const onlineQueues = (queues as QueueGroup[]).filter((q) => q.is_active);
 
-  // ── Issue ticket ──────────────────────────────────────────────────────────
   const issueMutation = useMutation({
     mutationFn: (queueGroupId: string) =>
       queuesApi.issueTicket({ queue_group_id: queueGroupId, branch_id: branchId }).then((r) => r.data),
     onSuccess: (ticket) => {
       setIssuedTicket(ticket);
-      setCountdown(6);
+      setCountdown(8);
       const waitCount = waitingCountByGroup.get(ticket.queue_group_id) ?? 0;
       const estMins = estimateWaitMinutes(waitCount, (ticket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins);
-      const counterName = ticket.counter
-        ? loc(ticket.counter as unknown as Record<string, unknown>, "name", lang) || `#${(ticket.counter as { number?: number }).number ?? ""}`
-        : undefined;
       printTicketReceipt({
         ticketNumber: ticket.ticket_number,
         queueName: loc(ticket.queue_group as unknown as Record<string, unknown>, "name", lang) || (ticket.queue_group as QueueGroup | undefined)?.name_uz || "Queue",
-        counterName,
         position: waitCount + 1,
         estimatedWaitMins: estMins,
         branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
@@ -191,7 +189,6 @@ function KioskPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to issue ticket"),
   });
 
-  // Countdown after ticket issued
   useEffect(() => {
     if (!issuedTicket) return;
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -209,262 +206,255 @@ function KioskPage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [issuedTicket]);
 
-  // ── Theme helpers ─────────────────────────────────────────────────────────
-  const bg   = isDark ? "bg-gradient-to-b from-slate-900 to-slate-800 text-white" : "bg-slate-50 text-slate-900";
-  const card = isDark
-    ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30 shadow-lg hover:shadow-xl"
-    : "border-slate-200 bg-white hover:border-blue-400 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.14)] hover:-translate-y-0.5";
-  const muted= isDark ? "text-white/50" : "text-slate-400";
+  // ── Colors ────────────────────────────────────────────────────────────────
+  const BG     = isDark ? "#07111f" : "#f1f5f9";
+  const HEADER = isDark ? "#0d1b2f" : "#1e293b";
+  const CARD_BG = isDark ? "#0d1b2f" : "#ffffff";
+  const CARD_BORDER = isDark ? "rgba(148,163,184,.15)" : "#e2e8f0";
+  const CARD_TEXT = isDark ? "#f8fafc" : "#0f172a";
+  const TITLE_COLOR = isDark ? "#f8fafc" : "#0f172a";
+  const FOOTER_BG = isDark ? "#0d1b2f" : "#1e293b";
+  const LANG_ACTIVE = isDark ? "#e0f2fe" : "#0284c7";
+  const LANG_ACTIVE_TEXT = isDark ? "#0369a1" : "#ffffff";
+  const LANG_INACTIVE = "transparent";
+  const LANG_INACTIVE_TEXT = isDark ? "#94a3b8" : "#94a3b8";
+
+  // ── Date / time ───────────────────────────────────────────────────────────
+  const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   // ── No branch ─────────────────────────────────────────────────────────────
   if (!branchId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 text-white px-6">
-        <div className="max-w-md text-center">
-          <div className="mb-4 text-6xl">📋</div>
-          <h1 className="text-2xl font-bold">Kiosk not configured</h1>
-          <p className="mt-3 text-white/60">Open with a branch ID:</p>
-          <code className="mt-3 block rounded-xl bg-white/10 px-4 py-3 text-sm text-cyan-300">
-            /kiosk?branch=&lt;branch_id&gt;
-          </code>
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#07111f", color: "#f8fafc", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <h1 style={{ fontSize: 24, fontWeight: 900 }}>Kiosk not configured</h1>
+          <p style={{ marginTop: 12, color: "#64748b" }}>Open with a branch ID: /kiosk?branch=...</p>
         </div>
       </div>
     );
   }
 
-  // ── Issued ticket thank-you screen ────────────────────────────────────────
+  // ── Ticket issued screen ───────────────────────────────────────────────────
   if (issuedTicket) {
     const waitCount = waitingCountByGroup.get(issuedTicket.queue_group_id) ?? 0;
     const estMins = estimateWaitMinutes(waitCount, (issuedTicket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins);
     return (
-      <div className={`flex min-h-screen flex-col items-center justify-center px-6 py-12 ${bg}`}>
-        {/* Lang */}
-        <div className="absolute right-4 top-4 flex gap-1.5">
-          {LANGS.map((l) => (
-            <button key={l.code} onClick={() => setLang(l.code)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${lang === l.code ? (isDark ? "bg-white text-slate-900" : "bg-slate-900 text-white") : (isDark ? "bg-white/10 hover:bg-white/20" : "bg-slate-100 hover:bg-slate-200")}`}>
-              {l.flag} {l.code.toUpperCase()}
-            </button>
-          ))}
+      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, color: TITLE_COLOR, fontFamily: "Arial, Helvetica, sans-serif" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "14px 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src="/logo.png" alt="logo" style={{ height: 44, objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          </div>
+          <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+            {LANGS.map((l) => (
+              <button key={l.code} onClick={() => setLang(l.code)} style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "6px 14px", background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE, color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT, fontWeight: 900, fontSize: 13 }}>
+                {l.code.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="w-full max-w-sm text-center">
-          {/* Big number */}
-          <div className={`mb-6 rounded-3xl p-10 shadow-2xl ${isDark ? "bg-white/10 backdrop-blur" : "border-2 border-slate-200 bg-white"}`}>
-            <div className={`text-xs font-medium uppercase tracking-[0.3em] mb-2 ${muted}`}>{t("yourNumber")}</div>
-            <div className={`text-[5rem] font-black leading-none tracking-wider`}>{issuedTicket.ticket_number}</div>
-            <div className={`mt-3 text-base font-medium ${muted}`}>
-              {loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px" }}>
+          <div style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 28, padding: "48px 40px", textAlign: "center", maxWidth: 400, width: "100%" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.2em", color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>{t("yourNumber")}</p>
+            <div style={{ fontSize: 96, fontWeight: 900, lineHeight: 1, color: CARD_TEXT, letterSpacing: 4 }}>{issuedTicket.ticket_number}</div>
+            <p style={{ marginTop: 12, fontSize: 18, color: "#64748b" }}>{loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz}</p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 24 }}>
+              <div style={{ background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc", borderRadius: 16, padding: 16 }}>
+                <p style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("waitPosition")}</p>
+                <p style={{ fontSize: 36, fontWeight: 900, marginTop: 4 }}>{waitCount + 1}</p>
+              </div>
+              <div style={{ background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc", borderRadius: 16, padding: 16 }}>
+                <p style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("estWaitTime")}</p>
+                <p style={{ fontSize: 36, fontWeight: 900, marginTop: 4 }}>{estMins != null ? `~${estMins}` : "—"}</p>
+                {estMins != null && <p style={{ fontSize: 12, color: "#64748b" }}>{t("minutes")}</p>}
+              </div>
             </div>
+
+            <Button variant="outline" style={{ marginTop: 24, width: "100%" }}
+              onClick={() => printTicketReceipt({
+                ticketNumber: issuedTicket.ticket_number,
+                queueName: loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz || "Queue",
+                position: waitCount + 1, estimatedWaitMins: estMins,
+                branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz, lang,
+              })}>
+              <Printer style={{ width: 16, height: 16, marginRight: 8 }} /> {t("printTicket")}
+            </Button>
+
+            <button onClick={() => { setIssuedTicket(null); setMenuStack([]); }}
+              style={{ marginTop: 16, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14 }}>
+              {t("thanks")} — {t("issueAnother")} ({countdown}s)
+            </button>
           </div>
+        </div>
 
-          {/* Stats */}
-          <div className="mb-6 grid grid-cols-2 gap-3">
-            <div className={`rounded-2xl p-4 ${isDark ? "bg-white/5" : "border bg-slate-50"}`}>
-              <div className={`text-xs uppercase tracking-widest mb-1 ${muted}`}>{t("waitPosition")}</div>
-              <div className="text-3xl font-black">{waitCount + 1}</div>
-            </div>
-            <div className={`rounded-2xl p-4 ${isDark ? "bg-white/5" : "border bg-slate-50"}`}>
-              <div className={`text-xs uppercase tracking-widest mb-1 ${muted}`}>{t("estWaitTime")}</div>
-              <div className="text-3xl font-black">{estMins != null ? `~${estMins}` : "—"}</div>
-              {estMins != null && <div className={`text-xs ${muted}`}>{t("minutes")}</div>}
-            </div>
-          </div>
-
-          {/* Re-print */}
-          <Button variant="outline" className={`mb-4 w-full gap-2 ${isDark ? "border-white/20 text-white hover:bg-white/10" : ""}`}
-            onClick={() => printTicketReceipt({
-              ticketNumber: issuedTicket.ticket_number,
-              queueName: loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz || "Queue",
-              position: waitCount + 1,
-              estimatedWaitMins: estMins,
-              branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
-              lang,
-            })}>
-            <Printer className="h-4 w-4" /> {t("printTicket")}
-          </Button>
-
-          <button onClick={() => { setIssuedTicket(null); setMenuStack([]); }}
-            className={`text-sm transition ${isDark ? "text-white/40 hover:text-white/70" : "text-slate-400 hover:text-slate-600"}`}>
-            {t("thanks")} — {t("issueAnother")} ({countdown}s)
-          </button>
+        {/* Footer */}
+        <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center" }}>
+          <span style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: 2 }}>{dateStr} {timeStr}</span>
         </div>
       </div>
     );
   }
 
-  // ── Determine current menu items to show ──────────────────────────────────
+  // ── Menu items ─────────────────────────────────────────────────────────────
   const hasMenus = menus.filter((m) => m.is_visible).length > 0;
   const currentMenuParent = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
-
-  // Items at current level — either root or children of current parent
-  const currentItems = hasMenus
+  const currentItems: Menu[] = hasMenus
     ? currentMenuParent
-      // Children are nested on the parent object itself
       ? ((currentMenuParent as any).children ?? []).filter((m: Menu) => m.is_visible)
-      // Root level
       : menus.filter((m) => m.is_visible && (m.parent_id ?? null) === null)
     : [];
 
-  // Main render
+  const titleText = currentMenuParent
+    ? (loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang) || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang) || currentMenuParent.label || currentMenuParent.name)
+    : lang === "uz" ? "XIZMAT TURINI TANLANG" : lang === "ru" ? "ВЫБЕРИТЕ УСЛУГУ" : "SELECT A SERVICE";
+
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className={`relative flex flex-col min-h-screen overflow-hidden ${bg}`}>
-      {/* Lang */}
-      <div className="absolute right-4 top-4 z-10 flex gap-1.5">
-        {LANGS.map((l) => (
-          <button key={l.code} onClick={() => setLang(l.code)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${lang === l.code ? (isDark ? "bg-white text-slate-900" : "bg-slate-900 text-white") : (isDark ? "bg-white/10 hover:bg-white/20" : "bg-slate-100 hover:bg-slate-200")}`}>
-            {l.flag} {l.code.toUpperCase()}
-          </button>
-        ))}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR }}>
 
       {/* ── HEADER ── */}
-      <div className="flex flex-col items-center pt-6 pb-4 px-8">
-        <img
-          src="/logo.png"
-          alt="logo"
-          className="mb-3"
-          style={{ height: 80, width: "auto", objectFit: "contain" }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-        {currentMenuParent ? (
-          <h1 className="text-3xl font-black tracking-tight text-center">
-            {loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang)
-              || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang)
-              || currentMenuParent.label || currentMenuParent.name}
-          </h1>
-        ) : (
-          <>
-            <h1 className="text-4xl font-black tracking-tight text-center">{t("kioskTitle")}</h1>
-            <p className={`mt-1 text-center text-lg ${muted}`}>{t("kioskSubtitle")}</p>
-          </>
-        )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "14px 24px", flexShrink: 0 }}>
+        {/* Logo + org name */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src="/logo.png" alt="logo" style={{ height: 44, objectFit: "contain" }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: "#f8fafc", lineHeight: 1.2, textTransform: "uppercase", letterSpacing: 1 }}>
+              {loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as any)?.name_uz || ""}
+            </div>
+          </div>
+        </div>
+
+        {/* Language switcher */}
+        <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+          {LANGS.map((l) => (
+            <button key={l.code} onClick={() => setLang(l.code)} style={{
+              border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px",
+              background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE,
+              color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT,
+              fontWeight: 900, fontSize: 14,
+            }}>
+              {l.code.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── BACK BUTTON — top left corner ── */}
+      {/* ── BACK BUTTON ── */}
       {menuStack.length > 0 && (
-        <button
-          onClick={() => setMenuStack((s) => s.slice(0, -1))}
-          style={{
-            position: "absolute",
-            top: 16,
-            left: 16,
-            zIndex: 20,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 22px",
-            borderRadius: 14,
-            fontSize: 17,
-            fontWeight: 700,
-            cursor: "pointer",
-            border: "none",
-            background: isDark ? "rgba(255,255,255,0.15)" : "#1e293b",
-            color: "#ffffff",
-          }}
-        >
-          <ChevronLeft style={{ width: 22, height: 22 }} />
-          {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
-        </button>
+        <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+          <button
+            onClick={() => setMenuStack((s) => s.slice(0, -1))}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              padding: "14px 28px", borderRadius: 16,
+              fontSize: 18, fontWeight: 700, cursor: "pointer",
+              border: "none",
+              background: isDark ? "rgba(255,255,255,.12)" : "#1e293b",
+              color: "#ffffff",
+            }}
+          >
+            ‹ {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
+          </button>
+        </div>
       )}
 
-      {/* ── CONTENT fills screen ── */}
-      <div className="flex-1 px-8 pb-8 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
+      {/* ── TITLE ── */}
+      <div style={{ textAlign: "center", padding: "24px 24px 16px", flexShrink: 0 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: "0.1em", color: TITLE_COLOR, margin: 0, textTransform: "uppercase" }}>
+          {titleText}
+        </h1>
+      </div>
 
-        {/* ── MENU MODE ── */}
-        {hasMenus && (
-          <div className="grid grid-cols-2 gap-5 flex-1" style={{ alignContent: "start" }}>
-            {(currentItems as Menu[]).map((item) => {
-              const isLeaf = !!item.queue_group_id;
-              const queue = isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : null;
-              const waitCount = queue ? (waitingCountByGroup.get(queue.id) ?? 0) : 0;
-              const estMins = queue ? estimateWaitMinutes(waitCount, queue.service?.estimated_time_mins) : null;
+      {/* ── CARDS GRID ── */}
+      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          maxWidth: 860,
+          margin: "0 auto",
+        }}>
+          {(hasMenus ? currentItems : (onlineQueues as any[])).map((item: any) => {
+            const isMenu = !!item.queue_group_id !== undefined && item.name !== undefined && item.label !== undefined;
+            const isLeaf = hasMenus ? !!item.queue_group_id : true;
+            const queue = hasMenus && isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : (hasMenus ? null : item);
+            const queueGroupId = hasMenus ? item.queue_group_id : item.id;
+            const waitCount = queue ? (waitingCountByGroup.get(queue.id) ?? 0) : 0;
 
-              const itemName = isLeaf && queue
+            const itemName = hasMenus
+              ? (isLeaf && queue
                 ? (loc(queue as unknown as Record<string, unknown>, "name", lang) || queue.name_uz)
-                : (loc(item as unknown as Record<string, unknown>, "name", lang)
-                    || loc(item as unknown as Record<string, unknown>, "label", lang)
-                    || item.label || item.name);
+                : (loc(item as unknown as Record<string, unknown>, "name", lang) || loc(item as unknown as Record<string, unknown>, "label", lang) || item.label || item.name))
+              : loc(item as unknown as Record<string, unknown>, "name", lang) || item.name_uz;
 
-              return (
-                <button
-                  key={item.id}
-                  disabled={issueMutation.isPending}
-                  onClick={() => {
-                    if (isLeaf && item.queue_group_id) {
-                      issueMutation.mutate(item.queue_group_id);
-                    } else {
-                      setMenuStack((s) => [...s, item]);
-                    }
-                  }}
-                  className={`group flex flex-col rounded-3xl border p-8 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
-                >
-                  <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
-                    {isLeaf ? <TicketIcon className="h-7 w-7" /> : <FolderOpen className="h-7 w-7" />}
-                  </div>
-                  <div className="text-3xl font-bold flex-1 leading-snug">{itemName}</div>
-                  {isLeaf && queue && (
-                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-lg ${muted}`}>
-                      <span className="flex items-center gap-1.5"><Clock className="h-5 w-5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
-                      {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
-                    </div>
-                  )}
-                  {!isLeaf && (item.children?.length ?? 0) > 0 && (
-                    <div className={`mt-3 flex items-center gap-1 text-lg ${muted}`}>
-                      {item.children!.length} {lang === "uz" ? "ta xizmat" : lang === "ru" ? "услуги" : "services"}
-                      <ChevronRight className="h-5 w-5" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-            {currentItems.length === 0 && (
-              <div className={`col-span-2 rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
-                {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
-              </div>
-            )}
-          </div>
-        )}
+            return (
+              <button
+                key={item.id}
+                disabled={issueMutation.isPending}
+                onClick={() => {
+                  if (!hasMenus || (hasMenus && isLeaf && queueGroupId)) {
+                    issueMutation.mutate(hasMenus ? queueGroupId : item.id);
+                  } else {
+                    setMenuStack((s) => [...s, item]);
+                  }
+                }}
+                style={{
+                  background: CARD_BG,
+                  border: `1.5px solid ${CARD_BORDER}`,
+                  borderRadius: 20,
+                  padding: "28px 24px",
+                  cursor: issueMutation.isPending ? "not-allowed" : "pointer",
+                  textAlign: "center",
+                  color: CARD_TEXT,
+                  fontFamily: "Arial, Helvetica, sans-serif",
+                  fontSize: 22,
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  transition: "transform 0.1s, box-shadow 0.1s",
+                  boxShadow: isDark ? "0 4px 24px rgba(0,0,0,.3)" : "0 2px 12px rgba(0,0,0,.08)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 120,
+                  opacity: issueMutation.isPending ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.02)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+              >
+                <span>{itemName}</span>
+                {(isLeaf || !hasMenus) && waitCount > 0 && (
+                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: isDark ? "#38bdf8" : "#0284c7" }}>
+                    {waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
-        {/* ── FLAT QUEUE MODE ── */}
-        {!hasMenus && (
-          onlineQueues.length === 0 ? (
-            <div className={`rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
+          {hasMenus && currentItems.length === 0 && (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: 18 }}>
+              {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
+            </div>
+          )}
+          {!hasMenus && onlineQueues.length === 0 && (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: 18 }}>
               {t("noQueues")}
             </div>
-          ) : (
-          <div className="grid grid-cols-2 gap-5 flex-1" style={{ alignContent: "start" }}>
-              {onlineQueues.map((q) => {
-                const waitCount = waitingCountByGroup.get(q.id) ?? 0;
-                const estMins = estimateWaitMinutes(waitCount, q.service?.estimated_time_mins);
-                return (
-                  <button
-                    key={q.id}
-                    disabled={issueMutation.isPending}
-                    onClick={() => issueMutation.mutate(q.id)}
-                    className={`group flex flex-col rounded-3xl border p-8 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
-                  >
-                    <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
-                      <TicketIcon className="h-7 w-7" />
-                    </div>
-                    <div className="text-3xl font-bold flex-1 leading-snug">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
-                    {q.service && (
-                      <div className={`mt-1 text-lg ${muted}`}>
-                        {loc(q.service as unknown as Record<string, unknown>, "description", lang) || loc(q.service as unknown as Record<string, unknown>, "name", lang)}
-                      </div>
-                    )}
-                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-lg ${muted}`}>
-                      <span className="flex items-center gap-1.5"><Hash className="h-5 w-5" />{q.prefix}</span>
-                      <span className="flex items-center gap-1.5"><Clock className="h-5 w-5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
-                      {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )
-        )}
+          )}
+        </div>
+      </div>
+
+      {/* ── FOOTER — date/time ── */}
+      <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", flexShrink: 0 }}>
+        <span style={{ fontSize: 30, fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
+          {dateStr} {timeStr}
+        </span>
       </div>
     </div>
   );
