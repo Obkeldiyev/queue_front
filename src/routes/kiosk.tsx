@@ -323,9 +323,9 @@ function KioskPage() {
       {menuStack.length > 0 && (
         <button
           onClick={() => setMenuStack((s) => s.slice(0, -1))}
-          className={`absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"}`}
+          className={`absolute left-4 top-4 z-10 flex items-center gap-2 rounded-2xl px-5 py-3 text-base font-bold transition shadow-md ${isDark ? "bg-white/15 hover:bg-white/25 text-white border border-white/20" : "bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 shadow-sm"}`}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
           {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
         </button>
       )}

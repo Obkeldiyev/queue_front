@@ -72,8 +72,8 @@ const translations = {
     noTicket: "Aktiv chipta yo'q",
 
     // Kiosk
-    kioskTitle: "Xizmat tanlang",
-    kioskSubtitle: "O'z-xizmat kiosk",
+    kioskTitle: "Xizmatni tanlang",
+    kioskSubtitle: "O'z-o'ziga xizmat ko'rsatish",
     avgTime: "Taxm",
     prefix: "Prefiks",
     thanks: "Rahmat",
