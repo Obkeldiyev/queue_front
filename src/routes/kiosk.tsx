@@ -302,7 +302,7 @@ function KioskPage() {
 
   // Main render
   return (
-    <div className={`relative min-h-screen overflow-hidden ${bg}`}>
+    <div className={`relative flex flex-col min-h-screen overflow-hidden ${bg}`}>
       {/* Lang */}
       <div className="absolute right-4 top-4 z-10 flex gap-1.5">
         {LANGS.map((l) => (
@@ -313,7 +313,7 @@ function KioskPage() {
         ))}
       </div>
 
-      {/* Back button (when inside a menu) */}
+      {/* Back button */}
       {menuStack.length > 0 && (
         <button
           onClick={() => setMenuStack((s) => s.slice(0, -1))}
@@ -324,36 +324,53 @@ function KioskPage() {
         </button>
       )}
 
-      <div className="mx-auto max-w-2xl px-6 py-16">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          {branch && (
-            <div className={`mb-2 text-sm font-medium uppercase tracking-widest ${muted}`}>
-              {loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string })?.name_uz}
-            </div>
-          )}
-          {currentMenuParent ? (
-            <h1 className="text-4xl font-black tracking-tight">
-              {loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang)
-                || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang)
-                || currentMenuParent.label || currentMenuParent.name}
-            </h1>
-          ) : (
-            <>
-              <h1 className="text-4xl font-black tracking-tight">{t("kioskTitle")}</h1>
-              <p className={`mt-2 ${muted}`}>{t("kioskSubtitle")}</p>
-            </>
-          )}
-        </div>
+      {/* ── HEADER ── */}
+      <div className="flex flex-col items-center pt-6 pb-4 px-6">
+        <img
+          src="/logo.png"
+          alt="logo"
+          className="mb-3"
+          style={{ height: 80, width: "auto", objectFit: "contain" }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+        {currentMenuParent ? (
+          <h1 className="text-3xl font-black tracking-tight text-center">
+            {loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang)
+              || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang)
+              || currentMenuParent.label || currentMenuParent.name}
+          </h1>
+        ) : (
+          <>
+            <h1 className="text-3xl font-black tracking-tight text-center">{t("kioskTitle")}</h1>
+            <p className={`mt-1 text-center text-sm ${muted}`}>{t("kioskSubtitle")}</p>
+          </>
+        )}
+      </div>
+
+      {/* ── CONTENT fills screen ── */}
+      <div className="flex-1 px-4 pb-4 flex flex-col min-h-0">
 
         {/* ── MENU MODE ── */}
         {hasMenus && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div
+            className={`grid gap-3 flex-1 ${
+              currentItems.length <= 2 ? "grid-cols-2" :
+              currentItems.length <= 4 ? "grid-cols-2" :
+              "grid-cols-3"
+            }`}
+            style={{ alignContent: "stretch" }}
+          >
             {currentItems.map((item) => {
               const isLeaf = !!item.queue_group_id;
               const queue = isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : null;
               const waitCount = queue ? (waitingCountByGroup.get(queue.id) ?? 0) : 0;
               const estMins = queue ? estimateWaitMinutes(waitCount, queue.service?.estimated_time_mins) : null;
+
+              const itemName = isLeaf && queue
+                ? (loc(queue as unknown as Record<string, unknown>, "name", lang) || queue.name_uz)
+                : (loc(item as unknown as Record<string, unknown>, "name", lang)
+                    || loc(item as unknown as Record<string, unknown>, "label", lang)
+                    || item.label || item.name);
 
               return (
                 <button
@@ -366,74 +383,79 @@ function KioskPage() {
                       setMenuStack((s) => [...s, item]);
                     }
                   }}
-                  className={`group flex flex-col rounded-2xl border p-6 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
+                  className={`group flex flex-col rounded-2xl border p-5 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
                 >
-                  <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
-                    {isLeaf ? <TicketIcon className="h-5 w-5" /> : <FolderOpen className="h-5 w-5" />}
+                  <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
+                    {isLeaf ? <TicketIcon className="h-6 w-6" /> : <FolderOpen className="h-6 w-6" />}
                   </div>
-                  <div className="text-lg font-bold">{item.label || item.name}</div>
+                  <div className="text-xl font-bold flex-1">{itemName}</div>
                   {isLeaf && queue && (
-                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${muted}`}>
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${muted}`}>
+                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
                       {estMins != null && <span className={`font-medium ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
                     </div>
                   )}
                   {!isLeaf && (item.children?.length ?? 0) > 0 && (
-                    <div className={`mt-2 flex items-center gap-1 text-xs ${muted}`}>
+                    <div className={`mt-2 flex items-center gap-1 text-sm ${muted}`}>
                       {item.children!.length} {lang === "uz" ? "ta xizmat" : lang === "ru" ? "услуги" : "services"}
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-4 w-4" />
                     </div>
                   )}
                 </button>
               );
             })}
             {currentItems.length === 0 && (
-              <div className={`col-span-2 rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
+              <div className={`col-span-3 rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
                 {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
               </div>
             )}
           </div>
         )}
 
-        {/* ── FLAT QUEUE MODE (no menus configured) ── */}
+        {/* ── FLAT QUEUE MODE ── */}
         {!hasMenus && (
-          <>
-            {onlineQueues.length === 0 ? (
-              <div className={`rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
-                {t("noQueues")}
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {onlineQueues.map((q) => {
-                  const waitCount = waitingCountByGroup.get(q.id) ?? 0;
-                  const estMins = estimateWaitMinutes(waitCount, q.service?.estimated_time_mins);
-                  return (
-                    <button
-                      key={q.id}
-                      disabled={issueMutation.isPending}
-                      onClick={() => issueMutation.mutate(q.id)}
-                      className={`group flex flex-col rounded-2xl border p-6 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
-                    >
-                      <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
-                        <TicketIcon className="h-5 w-5" />
+          onlineQueues.length === 0 ? (
+            <div className={`rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
+              {t("noQueues")}
+            </div>
+          ) : (
+            <div
+              className={`grid gap-3 flex-1 ${
+                onlineQueues.length <= 2 ? "grid-cols-2" :
+                onlineQueues.length <= 4 ? "grid-cols-2" :
+                "grid-cols-3"
+              }`}
+              style={{ alignContent: "stretch" }}
+            >
+              {onlineQueues.map((q) => {
+                const waitCount = waitingCountByGroup.get(q.id) ?? 0;
+                const estMins = estimateWaitMinutes(waitCount, q.service?.estimated_time_mins);
+                return (
+                  <button
+                    key={q.id}
+                    disabled={issueMutation.isPending}
+                    onClick={() => issueMutation.mutate(q.id)}
+                    className={`group flex flex-col rounded-2xl border p-5 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
+                  >
+                    <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
+                      <TicketIcon className="h-6 w-6" />
+                    </div>
+                    <div className="text-xl font-bold flex-1">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
+                    {q.service && (
+                      <div className={`mt-1 text-sm ${muted}`}>
+                        {loc(q.service as unknown as Record<string, unknown>, "description", lang) || loc(q.service as unknown as Record<string, unknown>, "name", lang)}
                       </div>
-                      <div className="text-lg font-bold">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
-                      {q.service && (
-                        <div className={`mt-1 text-sm ${muted}`}>
-                          {loc(q.service as unknown as Record<string, unknown>, "description", lang) || loc(q.service as unknown as Record<string, unknown>, "name", lang)}
-                        </div>
-                      )}
-                      <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${muted}`}>
-                        <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{q.prefix}</span>
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
-                        {estMins != null && <span className={`font-medium ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </>
+                    )}
+                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${muted}`}>
+                      <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" />{q.prefix}</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                      {estMins != null && <span className={`font-medium ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
