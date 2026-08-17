@@ -206,14 +206,14 @@ function KioskPage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [issuedTicket]);
 
-  // ── Colors — royal blue matching the reference design ───────────────────
-  const BG          = "#1a56db";   // main royal blue background
-  const HEADER      = "#1e4fc7";   // slightly darker blue header
+  // ── Colors ───────────────────────────────────────────────────────────────
+  const BG          = "#003675";   // Turin blue hsl(212,100%,23%) — main background
+  const HEADER      = "#1a56db";   // lighter bright blue — header bar
   const CARD_BG     = "#ffffff";   // pure white cards
   const CARD_BORDER = "rgba(255,255,255,.3)";
-  const CARD_TEXT   = "#1a3a8f";   // dark navy text on cards
+  const CARD_TEXT   = "#003675";   // same blue text on cards
   const TITLE_COLOR = "#ffffff";   // white title
-  const FOOTER_BG   = "#2563eb";   // bright blue footer bar
+  const FOOTER_BG   = "#1a56db";   // same lighter blue — footer bar
   const LANG_ACTIVE = "#2563eb";
   const LANG_ACTIVE_TEXT = "#ffffff";
   const LANG_INACTIVE = "transparent";
@@ -310,7 +310,7 @@ function KioskPage() {
 
   const titleText = currentMenuParent
     ? (loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang) || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang) || currentMenuParent.label || currentMenuParent.name)
-    : lang === "uz" ? "XIZMAT TURINI TANLANG" : lang === "ru" ? "ВЫБЕРИТЕ УСЛУГУ" : "SELECT A SERVICE";
+    : lang === "uz" ? "YO'NALISHNI TANLANG" : lang === "ru" ? "ВЫБЕРИТЕ НАПРАВЛЕНИЕ" : "SELECT DIRECTION";
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
