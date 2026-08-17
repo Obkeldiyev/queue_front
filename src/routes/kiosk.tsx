@@ -320,55 +320,59 @@ function KioskPage() {
 
       {/* ── HEADER ── */}
       <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "12px 20px", borderRadius: 16 }}>
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
-              style={{ height: 52, width: "auto", objectFit: "contain" }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "10px 16px", borderRadius: menuStack.length > 0 ? "16px 16px 0 0" : 16 }}>
+          {/* Logo or back button */}
+          {menuStack.length > 0 ? (
+            <button
+              onClick={() => setMenuStack((s) => s.slice(0, -1))}
+              style={{
+                border: "none", cursor: "pointer", background: "transparent",
+                color: "#ffffff", padding: "6px 10px",
+                fontSize: 16, fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 22, lineHeight: 1 }}>‹</span>
+              {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
+                style={{ height: 52, width: "auto", objectFit: "contain" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            </div>
+          )}
 
           {/* Language switcher */}
-          <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+          <div style={{ display: "flex", gap: 2, background: "rgba(0,0,0,.2)", borderRadius: 999, padding: 3 }}>
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLang(l.code)} style={{
-                border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px",
-                background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE,
-                color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT,
-                fontWeight: 900, fontSize: 14,
+                border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 12px",
+                background: lang === l.code ? "#ffffff" : "transparent",
+                color: lang === l.code ? "#003675" : "rgba(255,255,255,.7)",
+                fontWeight: 800, fontSize: 13,
               }}>
                 {l.code.toUpperCase()}
               </button>
             ))}
           </div>
         </div>
+        {/* Back button continuation — seamless bottom strip */}
+        {menuStack.length > 0 && (
+          <div style={{ background: HEADER, borderRadius: "0 0 16px 16px", height: 6 }} />
+        )}
       </div>
 
-      {/* ── BACK BUTTON — full-width prominent bar ── */}
-      {menuStack.length > 0 && (
-        <button
-          onClick={() => setMenuStack((s) => s.slice(0, -1))}
-          style={{
-            width: "100%", border: "none", cursor: "pointer",
-            background: "rgba(255,255,255,.15)",
-            color: "#ffffff",
-            padding: "16px 28px",
-            fontSize: 20, fontWeight: 800,
-            display: "flex", alignItems: "center", gap: 12,
-            flexShrink: 0,
-            letterSpacing: "0.03em",
-          }}
-        >
-          <span style={{ fontSize: 26, lineHeight: 1 }}>‹</span>
-          {lang === "uz" ? "Orqaga qaytish" : lang === "ru" ? "Вернуться назад" : "Go back"}
-        </button>
-      )}
-
       {/* ── TITLE ── */}
-      <div style={{ textAlign: "center", padding: "24px 24px 16px", flexShrink: 0 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: "0.1em", color: TITLE_COLOR, margin: 0, textTransform: "uppercase" }}>
+      <div style={{ textAlign: "center", padding: "24px 24px 12px", flexShrink: 0 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.08em", color: TITLE_COLOR, margin: 0, textTransform: "uppercase" }}>
           {titleText}
         </h1>
+        {currentMenuParent && (
+          <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,.65)", fontWeight: 500 }}>
+            {lang === "uz" ? "Xizmatni tanlang" : lang === "ru" ? "Выберите услугу" : "Select a service"}
+          </p>
+        )}
       </div>
 
       {/* ── CARDS GRID ── */}
