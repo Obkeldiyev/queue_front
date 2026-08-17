@@ -347,9 +347,22 @@ function KioskPage() {
         <div className="px-8 pb-2 max-w-4xl mx-auto w-full">
           <button
             onClick={() => setMenuStack((s) => s.slice(0, -1))}
-            className={`flex items-center gap-2 rounded-xl px-6 py-3 text-lg font-bold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "14px 24px",
+              borderRadius: 14,
+              fontSize: 18,
+              fontWeight: 700,
+              cursor: "pointer",
+              border: "none",
+              background: isDark ? "rgba(255,255,255,0.15)" : "#1e293b",
+              color: "#ffffff",
+              transition: "opacity 0.15s",
+            }}
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft style={{ width: 24, height: 24 }} />
             {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
           </button>
         </div>
