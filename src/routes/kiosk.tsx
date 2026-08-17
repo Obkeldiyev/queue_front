@@ -367,7 +367,7 @@ function KioskPage() {
 
       {/* ── TITLE ── */}
       <div style={{ textAlign: "center", padding: "24px 24px 12px", flexShrink: 0 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "0.02em", color: TITLE_COLOR, margin: 0 }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "0.02em", color: TITLE_COLOR, margin: 0, textTransform: "uppercase" }}>
           {titleText}
         </h1>
         {currentMenuParent && (
