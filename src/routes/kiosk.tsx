@@ -321,18 +321,6 @@ function KioskPage() {
 
       {/* ── HEADER ── */}
       <div className="flex flex-col items-center pt-6 pb-4 px-8">
-        {/* Back button row — only shown inside a submenu */}
-        {menuStack.length > 0 && (
-          <div className="w-full max-w-4xl mb-3">
-            <button
-              onClick={() => setMenuStack((s) => s.slice(0, -1))}
-              className={`flex items-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
-            >
-              <ChevronLeft className="h-5 w-5" />
-              {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
-            </button>
-          </div>
-        )}
         <img
           src="/logo.png"
           alt="logo"
@@ -353,6 +341,19 @@ function KioskPage() {
           </>
         )}
       </div>
+
+      {/* ── BACK BUTTON — shown below header when inside a submenu ── */}
+      {menuStack.length > 0 && (
+        <div className="px-8 pb-2 max-w-4xl mx-auto w-full">
+          <button
+            onClick={() => setMenuStack((s) => s.slice(0, -1))}
+            className={`flex items-center gap-2 rounded-xl px-6 py-3 text-lg font-bold transition ${isDark ? "bg-white/15 hover:bg-white/25 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"}`}
+          >
+            <ChevronLeft className="h-6 w-6" />
+            {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
+          </button>
+        </div>
+      )}
 
       {/* ── CONTENT fills screen ── */}
       <div className="flex-1 px-8 pb-8 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
