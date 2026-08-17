@@ -341,8 +341,8 @@ function KioskPage() {
           </h1>
         ) : (
           <>
-            <h1 className="text-3xl font-black tracking-tight text-center">{t("kioskTitle")}</h1>
-            <p className={`mt-1 text-center text-sm ${muted}`}>{t("kioskSubtitle")}</p>
+            <h1 className="text-4xl font-black tracking-tight text-center">{t("kioskTitle")}</h1>
+            <p className={`mt-1 text-center text-lg ${muted}`}>{t("kioskSubtitle")}</p>
           </>
         )}
       </div>
@@ -381,17 +381,17 @@ function KioskPage() {
                   <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
                     {isLeaf ? <TicketIcon className="h-7 w-7" /> : <FolderOpen className="h-7 w-7" />}
                   </div>
-                  <div className="text-2xl font-bold flex-1 leading-snug">{itemName}</div>
+                  <div className="text-3xl font-bold flex-1 leading-snug">{itemName}</div>
                   {isLeaf && queue && (
-                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-base ${muted}`}>
-                      <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-lg ${muted}`}>
+                      <span className="flex items-center gap-1.5"><Clock className="h-5 w-5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
                       {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
                     </div>
                   )}
                   {!isLeaf && (item.children?.length ?? 0) > 0 && (
-                    <div className={`mt-3 flex items-center gap-1 text-base ${muted}`}>
+                    <div className={`mt-3 flex items-center gap-1 text-lg ${muted}`}>
                       {item.children!.length} {lang === "uz" ? "ta xizmat" : lang === "ru" ? "услуги" : "services"}
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-5 w-5" />
                     </div>
                   )}
                 </button>
@@ -426,15 +426,15 @@ function KioskPage() {
                     <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
                       <TicketIcon className="h-7 w-7" />
                     </div>
-                    <div className="text-2xl font-bold flex-1 leading-snug">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
+                    <div className="text-3xl font-bold flex-1 leading-snug">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
                     {q.service && (
-                      <div className={`mt-1 text-base ${muted}`}>
+                      <div className={`mt-1 text-lg ${muted}`}>
                         {loc(q.service as unknown as Record<string, unknown>, "description", lang) || loc(q.service as unknown as Record<string, unknown>, "name", lang)}
                       </div>
                     )}
-                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-base ${muted}`}>
-                      <span className="flex items-center gap-1.5"><Hash className="h-4 w-4" />{q.prefix}</span>
-                      <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-lg ${muted}`}>
+                      <span className="flex items-center gap-1.5"><Hash className="h-5 w-5" />{q.prefix}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="h-5 w-5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
                       {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
                     </div>
                   </button>
