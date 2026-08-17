@@ -292,8 +292,10 @@ function KioskPage() {
         </div>
 
         {/* Footer */}
-        <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center" }}>
-          <span style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: 2 }}>{dateStr} {timeStr}</span>
+        <div style={{ padding: "0 16px 16px" }}>
+          <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", borderRadius: 16 }}>
+            <span style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: 2 }}>{dateStr} {timeStr}</span>
+          </div>
         </div>
       </div>
     );
@@ -317,26 +319,28 @@ function KioskPage() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR }}>
 
       {/* ── HEADER ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "12px 28px", flexShrink: 0 }}>
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
-            style={{ height: 64, width: "auto", objectFit: "contain" }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-        </div>
+      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "12px 20px", borderRadius: 16 }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
+              style={{ height: 52, width: "auto", objectFit: "contain" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          </div>
 
-        {/* Language switcher */}
-        <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
-          {LANGS.map((l) => (
-            <button key={l.code} onClick={() => setLang(l.code)} style={{
-              border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px",
-              background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE,
-              color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT,
-              fontWeight: 900, fontSize: 14,
-            }}>
-              {l.code.toUpperCase()}
-            </button>
-          ))}
+          {/* Language switcher */}
+          <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+            {LANGS.map((l) => (
+              <button key={l.code} onClick={() => setLang(l.code)} style={{
+                border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px",
+                background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE,
+                color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT,
+                fontWeight: 900, fontSize: 14,
+              }}>
+                {l.code.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -448,10 +452,12 @@ function KioskPage() {
       </div>
 
       {/* ── FOOTER — date/time ── */}
-      <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", flexShrink: 0 }}>
-        <span style={{ fontSize: 30, fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
-          {dateStr} {timeStr}
-        </span>
+      <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
+        <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", borderRadius: 16 }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
+            {dateStr} {timeStr}
+          </span>
+        </div>
       </div>
     </div>
   );
