@@ -352,14 +352,7 @@ function KioskPage() {
 
         {/* ── MENU MODE ── */}
         {hasMenus && (
-          <div
-            className={`grid gap-3 flex-1 ${
-              currentItems.length <= 2 ? "grid-cols-2" :
-              currentItems.length <= 4 ? "grid-cols-2" :
-              "grid-cols-3"
-            }`}
-            style={{ alignContent: "stretch" }}
-          >
+          <div className="grid grid-cols-2 gap-4 flex-1" style={{ alignContent: "stretch" }}>
             {currentItems.map((item) => {
               const isLeaf = !!item.queue_group_id;
               const queue = isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : null;
@@ -383,20 +376,20 @@ function KioskPage() {
                       setMenuStack((s) => [...s, item]);
                     }
                   }}
-                  className={`group flex flex-col rounded-2xl border p-5 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
+                  className={`group flex flex-col rounded-3xl border p-8 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
                 >
-                  <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
-                    {isLeaf ? <TicketIcon className="h-6 w-6" /> : <FolderOpen className="h-6 w-6" />}
+                  <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isLeaf ? (isDark ? "bg-green-500/20 text-green-400" : "bg-green-50 text-green-600") : (isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-50 text-blue-600")}`}>
+                    {isLeaf ? <TicketIcon className="h-7 w-7" /> : <FolderOpen className="h-7 w-7" />}
                   </div>
-                  <div className="text-xl font-bold flex-1">{itemName}</div>
+                  <div className="text-2xl font-bold flex-1 leading-snug">{itemName}</div>
                   {isLeaf && queue && (
-                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${muted}`}>
-                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
-                      {estMins != null && <span className={`font-medium ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
+                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-base ${muted}`}>
+                      <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                      {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
                     </div>
                   )}
                   {!isLeaf && (item.children?.length ?? 0) > 0 && (
-                    <div className={`mt-2 flex items-center gap-1 text-sm ${muted}`}>
+                    <div className={`mt-3 flex items-center gap-1 text-base ${muted}`}>
                       {item.children!.length} {lang === "uz" ? "ta xizmat" : lang === "ru" ? "услуги" : "services"}
                       <ChevronRight className="h-4 w-4" />
                     </div>
@@ -405,7 +398,7 @@ function KioskPage() {
               );
             })}
             {currentItems.length === 0 && (
-              <div className={`col-span-3 rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
+              <div className={`col-span-2 rounded-2xl border p-10 text-center ${isDark ? "border-white/10" : "border-slate-200"} ${muted}`}>
                 {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
               </div>
             )}
@@ -419,14 +412,7 @@ function KioskPage() {
               {t("noQueues")}
             </div>
           ) : (
-            <div
-              className={`grid gap-3 flex-1 ${
-                onlineQueues.length <= 2 ? "grid-cols-2" :
-                onlineQueues.length <= 4 ? "grid-cols-2" :
-                "grid-cols-3"
-              }`}
-              style={{ alignContent: "stretch" }}
-            >
+            <div className="grid grid-cols-2 gap-4 flex-1" style={{ alignContent: "stretch" }}>
               {onlineQueues.map((q) => {
                 const waitCount = waitingCountByGroup.get(q.id) ?? 0;
                 const estMins = estimateWaitMinutes(waitCount, q.service?.estimated_time_mins);
@@ -435,21 +421,21 @@ function KioskPage() {
                     key={q.id}
                     disabled={issueMutation.isPending}
                     onClick={() => issueMutation.mutate(q.id)}
-                    className={`group flex flex-col rounded-2xl border p-5 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
+                    className={`group flex flex-col rounded-3xl border p-8 text-left transition active:scale-[0.98] disabled:opacity-50 ${card}`}
                   >
-                    <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
-                      <TicketIcon className="h-6 w-6" />
+                    <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${isDark ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"}`}>
+                      <TicketIcon className="h-7 w-7" />
                     </div>
-                    <div className="text-xl font-bold flex-1">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
+                    <div className="text-2xl font-bold flex-1 leading-snug">{loc(q as unknown as Record<string, unknown>, "name", lang)}</div>
                     {q.service && (
-                      <div className={`mt-1 text-sm ${muted}`}>
+                      <div className={`mt-1 text-base ${muted}`}>
                         {loc(q.service as unknown as Record<string, unknown>, "description", lang) || loc(q.service as unknown as Record<string, unknown>, "name", lang)}
                       </div>
                     )}
-                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${muted}`}>
-                      <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" />{q.prefix}</span>
-                      <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
-                      {estMins != null && <span className={`font-medium ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
+                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-base ${muted}`}>
+                      <span className="flex items-center gap-1.5"><Hash className="h-4 w-4" />{q.prefix}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}</span>
+                      {estMins != null && <span className={`font-semibold ${isDark ? "text-cyan-400" : "text-primary"}`}>~{estMins} {t("minutes")}</span>}
                     </div>
                   </button>
                 );
