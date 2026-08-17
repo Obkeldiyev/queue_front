@@ -211,7 +211,9 @@ function KioskPage() {
 
   // ── Theme helpers ─────────────────────────────────────────────────────────
   const bg   = isDark ? "bg-gradient-to-b from-slate-900 to-slate-800 text-white" : "bg-slate-50 text-slate-900";
-  const card = isDark ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30" : "border-slate-200 bg-white hover:border-slate-300 shadow-sm";
+  const card = isDark
+    ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30 shadow-lg hover:shadow-xl"
+    : "border-slate-200 bg-white hover:border-blue-400 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.14)] hover:-translate-y-0.5";
   const muted= isDark ? "text-white/50" : "text-slate-400";
 
   // ── No branch ─────────────────────────────────────────────────────────────
@@ -348,11 +350,11 @@ function KioskPage() {
       </div>
 
       {/* ── CONTENT fills screen ── */}
-      <div className="flex-1 px-4 pb-4 flex flex-col min-h-0">
+      <div className="flex-1 px-6 pb-6 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
 
         {/* ── MENU MODE ── */}
         {hasMenus && (
-          <div className="grid grid-cols-2 gap-4 flex-1" style={{ alignContent: "stretch" }}>
+          <div className="grid grid-cols-2 gap-5 flex-1" style={{ alignContent: "start" }}>
             {currentItems.map((item) => {
               const isLeaf = !!item.queue_group_id;
               const queue = isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : null;
@@ -412,7 +414,7 @@ function KioskPage() {
               {t("noQueues")}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 flex-1" style={{ alignContent: "stretch" }}>
+          <div className="grid grid-cols-2 gap-5 flex-1" style={{ alignContent: "start" }}>
               {onlineQueues.map((q) => {
                 const waitCount = waitingCountByGroup.get(q.id) ?? 0;
                 const estMins = estimateWaitMinutes(waitCount, q.service?.estimated_time_mins);

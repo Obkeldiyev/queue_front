@@ -65,6 +65,9 @@ function Menus() {
   const [parentId, setParentId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
+    name_uz: "",
+    name_ru: "",
+    name_en: "",
     label: "",
     queue_group_id: "",
     icon_class: "",
@@ -74,7 +77,7 @@ function Menus() {
   const openCreate = (parent: Menu | null = null) => {
     setEditItem(null);
     setParentId(parent?.id ?? null);
-    setForm({ name: "", label: "", queue_group_id: "", icon_class: "", is_visible: true });
+    setForm({ name: "", name_uz: "", name_ru: "", name_en: "", label: "", queue_group_id: "", icon_class: "", is_visible: true });
     setDialogOpen(true);
   };
 
@@ -83,6 +86,9 @@ function Menus() {
     setParentId(item.parent_id ?? null);
     setForm({
       name: item.name,
+      name_uz: (item as any).name_uz ?? item.name ?? "",
+      name_ru: (item as any).name_ru ?? "",
+      name_en: (item as any).name_en ?? "",
       label: item.label ?? item.name,
       queue_group_id: item.queue_group_id ?? "",
       icon_class: item.icon_class ?? "",
@@ -96,13 +102,16 @@ function Menus() {
       menusApi.create({
         company_id: companyId,
         parent_id: parentId ?? undefined,
-        name: form.name,
-        label: form.label || form.name,
+        name: form.name_uz || form.name,
+        ...(form.name_uz && { name_uz: form.name_uz } as any),
+        ...(form.name_ru && { name_ru: form.name_ru } as any),
+        ...(form.name_en && { name_en: form.name_en } as any),
+        label: form.label || form.name_uz || form.name,
         queue_group_id: form.queue_group_id || undefined,
         icon_class: form.icon_class || undefined,
         is_visible: form.is_visible,
         sort_order: menus.length,
-      }),
+      } as any),
     onSuccess: () => {
       toast.success("Menu item created");
       setDialogOpen(false);
@@ -114,12 +123,15 @@ function Menus() {
   const updateMutation = useMutation({
     mutationFn: () =>
       menusApi.update(editItem!.id, {
-        name: form.name,
-        label: form.label || form.name,
+        name: form.name_uz || form.name,
+        ...(form.name_uz !== undefined && { name_uz: form.name_uz } as any),
+        ...(form.name_ru !== undefined && { name_ru: form.name_ru } as any),
+        ...(form.name_en !== undefined && { name_en: form.name_en } as any),
+        label: form.label || form.name_uz || form.name,
         queue_group_id: form.queue_group_id || null,
         icon_class: form.icon_class || undefined,
         is_visible: form.is_visible,
-      }),
+      } as any),
     onSuccess: () => {
       toast.success("Updated");
       setDialogOpen(false);
@@ -240,24 +252,37 @@ function Menus() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Name *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Consulting, Reception, Floor 2…"
-                className="mt-1"
-                autoFocus
-              />
-            </div>
-            <div>
-              <Label>Display label <span className="text-xs text-muted-foreground">(shown on kiosk button, defaults to name)</span></Label>
-              <Input
-                value={form.label}
-                onChange={(e) => setForm({ ...form, label: e.target.value })}
-                placeholder={form.name || "Label…"}
-                className="mt-1"
-              />
+            {/* 3-language name fields */}
+            <div className="rounded-lg border p-3 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name (3 languages)</p>
+              <div>
+                <Label className="text-xs">🇺🇿 O'zbekcha *</Label>
+                <Input
+                  value={form.name_uz}
+                  onChange={(e) => setForm({ ...form, name_uz: e.target.value, name: e.target.value })}
+                  placeholder="e.g. Qabul, Konsultatsiya…"
+                  className="mt-1"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label className="text-xs">🇷🇺 Русский</Label>
+                <Input
+                  value={form.name_ru}
+                  onChange={(e) => setForm({ ...form, name_ru: e.target.value })}
+                  placeholder="e.g. Приёмная, Консультация…"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">🇬🇧 English</Label>
+                <Input
+                  value={form.name_en}
+                  onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+                  placeholder="e.g. Reception, Consulting…"
+                  className="mt-1"
+                />
+              </div>
             </div>
 
             {/* Queue link — makes this item a leaf that issues tickets */}
@@ -322,7 +347,7 @@ function Menus() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button
               onClick={() => (editItem ? updateMutation.mutate() : createMutation.mutate())}
-              disabled={!form.name || createMutation.isPending || updateMutation.isPending}
+              disabled={!form.name_uz || createMutation.isPending || updateMutation.isPending}
             >
               {editItem ? "Save" : "Create"}
             </Button>
