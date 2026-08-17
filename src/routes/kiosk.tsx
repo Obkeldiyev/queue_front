@@ -206,18 +206,18 @@ function KioskPage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [issuedTicket]);
 
-  // ── Colors — always dark navy to match the design reference ─────────────
-  const BG      = "#07111f";
-  const HEADER  = "#0d1b2f";
-  const CARD_BG = "#ffffff";
-  const CARD_BORDER = "rgba(255,255,255,.15)";
-  const CARD_TEXT = "#0d1b2f";
-  const TITLE_COLOR = "#f8fafc";
-  const FOOTER_BG = "#0d1b2f";
-  const LANG_ACTIVE = "#0ea5e9";
+  // ── Colors — royal blue matching the reference design ───────────────────
+  const BG          = "#1a56db";   // main royal blue background
+  const HEADER      = "#1e4fc7";   // slightly darker blue header
+  const CARD_BG     = "#ffffff";   // pure white cards
+  const CARD_BORDER = "rgba(255,255,255,.3)";
+  const CARD_TEXT   = "#1a3a8f";   // dark navy text on cards
+  const TITLE_COLOR = "#ffffff";   // white title
+  const FOOTER_BG   = "#2563eb";   // bright blue footer bar
+  const LANG_ACTIVE = "#2563eb";
   const LANG_ACTIVE_TEXT = "#ffffff";
   const LANG_INACTIVE = "transparent";
-  const LANG_INACTIVE_TEXT = "#94a3b8";
+  const LANG_INACTIVE_TEXT = "rgba(255,255,255,.6)";
 
   // ── Date / time ───────────────────────────────────────────────────────────
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -349,8 +349,8 @@ function KioskPage() {
           onClick={() => setMenuStack((s) => s.slice(0, -1))}
           style={{
             width: "100%", border: "none", cursor: "pointer",
-            background: "rgba(14,165,233,.18)",
-            color: "#38bdf8",
+            background: "rgba(255,255,255,.15)",
+            color: "#ffffff",
             padding: "16px 28px",
             fontSize: 20, fontWeight: 800,
             display: "flex", alignItems: "center", gap: 12,
@@ -416,7 +416,7 @@ function KioskPage() {
                   fontWeight: 700,
                   lineHeight: 1.3,
                   transition: "transform 0.1s, box-shadow 0.1s",
-                  boxShadow: "0 4px 24px rgba(0,0,0,.25)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,.15)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -429,7 +429,7 @@ function KioskPage() {
               >
                 <span>{itemName}</span>
                 {(isLeaf || !hasMenus) && waitCount > 0 && (
-                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: "#0284c7" }}>
+                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: "#1a56db" }}>
                     {waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}
                   </span>
                 )}
