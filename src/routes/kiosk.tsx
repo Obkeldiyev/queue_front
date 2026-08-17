@@ -326,13 +326,15 @@ function KioskPage() {
             <button
               onClick={() => setMenuStack((s) => s.slice(0, -1))}
               style={{
-                border: "none", cursor: "pointer", background: "transparent",
-                color: "#ffffff", padding: "6px 10px",
-                fontSize: 16, fontWeight: 700,
-                display: "flex", alignItems: "center", gap: 8,
+                border: "none", cursor: "pointer",
+                background: "rgba(0,0,0,.2)",
+                borderRadius: 999,
+                color: "#ffffff", padding: "5px 14px",
+                fontSize: 13, fontWeight: 800,
+                display: "flex", alignItems: "center", gap: 6,
               }}
             >
-              <span style={{ fontSize: 22, lineHeight: 1 }}>‹</span>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>‹</span>
               {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
             </button>
           ) : (
@@ -376,13 +378,13 @@ function KioskPage() {
       </div>
 
       {/* ── CARDS GRID ── */}
-      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: 16,
+          width: "100%",
           maxWidth: 860,
-          margin: "0 auto",
         }}>
           {(hasMenus ? currentItems : (onlineQueues as any[])).map((item: any) => {
             const isMenu = !!item.queue_group_id !== undefined && item.name !== undefined && item.label !== undefined;
