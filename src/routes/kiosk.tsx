@@ -317,15 +317,14 @@ function KioskPage() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR }}>
 
       {/* ── HEADER ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "14px 24px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "12px 28px", flexShrink: 0 }}>
         {/* Logo + org name */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img src="/logo.png" alt="logo" style={{ height: 44, objectFit: "contain" }}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <img src="/logo.png" alt="logo"
+            style={{ height: 56, width: "auto", objectFit: "contain", background: "#fff", borderRadius: 10, padding: 4 }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: "#f8fafc", lineHeight: 1.2, textTransform: "uppercase", letterSpacing: 1 }}>
-              {loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as any)?.name_uz || ""}
-            </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#94a3b8", lineHeight: 1.3, maxWidth: 260 }}>
+            {loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as any)?.name_uz || ""}
           </div>
         </div>
 
@@ -344,23 +343,24 @@ function KioskPage() {
         </div>
       </div>
 
-      {/* ── BACK BUTTON ── */}
+      {/* ── BACK BUTTON — full-width prominent bar ── */}
       {menuStack.length > 0 && (
-        <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
-          <button
-            onClick={() => setMenuStack((s) => s.slice(0, -1))}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 10,
-              padding: "14px 28px", borderRadius: 16,
-              fontSize: 18, fontWeight: 700, cursor: "pointer",
-              border: "none",
-              background: isDark ? "rgba(255,255,255,.12)" : "#1e293b",
-              color: "#ffffff",
-            }}
-          >
-            ‹ {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
-          </button>
-        </div>
+        <button
+          onClick={() => setMenuStack((s) => s.slice(0, -1))}
+          style={{
+            width: "100%", border: "none", cursor: "pointer",
+            background: isDark ? "rgba(14,165,233,.18)" : "#0284c7",
+            color: isDark ? "#38bdf8" : "#ffffff",
+            padding: "16px 28px",
+            fontSize: 20, fontWeight: 800,
+            display: "flex", alignItems: "center", gap: 12,
+            flexShrink: 0,
+            letterSpacing: "0.03em",
+          }}
+        >
+          <span style={{ fontSize: 26, lineHeight: 1 }}>‹</span>
+          {lang === "uz" ? "Orqaga qaytish" : lang === "ru" ? "Вернуться назад" : "Go back"}
+        </button>
       )}
 
       {/* ── TITLE ── */}
