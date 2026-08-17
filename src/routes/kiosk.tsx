@@ -346,7 +346,7 @@ function KioskPage() {
           )}
 
           {/* Language switcher */}
-          <div style={{ display: "flex", gap: 2, background: "rgba(0,0,0,.2)", borderRadius: 999, padding: 3 }}>
+          <div style={{ display: "flex", gap: 2, alignItems: "center", background: "rgba(0,0,0,.2)", borderRadius: 999, padding: 3 }}>
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLang(l.code)} style={{
                 border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 12px",
@@ -378,13 +378,13 @@ function KioskPage() {
       </div>
 
       {/* ── CARDS GRID ── */}
-      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto" }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: 16,
-          width: "100%",
           maxWidth: 860,
+          margin: "0 auto",
         }}>
           {(hasMenus ? currentItems : (onlineQueues as any[])).map((item: any) => {
             const isMenu = !!item.queue_group_id !== undefined && item.name !== undefined && item.label !== undefined;
