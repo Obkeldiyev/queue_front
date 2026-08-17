@@ -342,30 +342,31 @@ function KioskPage() {
         )}
       </div>
 
-      {/* ── BACK BUTTON — shown below header when inside a submenu ── */}
+      {/* ── BACK BUTTON — top left corner ── */}
       {menuStack.length > 0 && (
-        <div className="px-8 pb-2 max-w-4xl mx-auto w-full">
-          <button
-            onClick={() => setMenuStack((s) => s.slice(0, -1))}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "14px 24px",
-              borderRadius: 14,
-              fontSize: 18,
-              fontWeight: 700,
-              cursor: "pointer",
-              border: "none",
-              background: isDark ? "rgba(255,255,255,0.15)" : "#1e293b",
-              color: "#ffffff",
-              transition: "opacity 0.15s",
-            }}
-          >
-            <ChevronLeft style={{ width: 24, height: 24 }} />
-            {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
-          </button>
-        </div>
+        <button
+          onClick={() => setMenuStack((s) => s.slice(0, -1))}
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "12px 22px",
+            borderRadius: 14,
+            fontSize: 17,
+            fontWeight: 700,
+            cursor: "pointer",
+            border: "none",
+            background: isDark ? "rgba(255,255,255,0.15)" : "#1e293b",
+            color: "#ffffff",
+          }}
+        >
+          <ChevronLeft style={{ width: 22, height: 22 }} />
+          {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
+        </button>
       )}
 
       {/* ── CONTENT fills screen ── */}
