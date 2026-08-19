@@ -316,11 +316,11 @@ function KioskPage() {
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR, overflow: "hidden" }}>
 
       {/* ── HEADER ── */}
-      <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "10px 16px", borderRadius: menuStack.length > 0 ? "16px 16px 0 0" : 16 }}>
+      <div style={{ padding: "2vh 2vw 0", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "1.5vh 2vw", borderRadius: "1.5vw" }}>
           {/* Logo or back button */}
           {menuStack.length > 0 ? (
             <button
@@ -329,65 +329,63 @@ function KioskPage() {
                 border: "none", cursor: "pointer",
                 background: "rgba(0,0,0,.2)",
                 borderRadius: 999,
-                color: "#ffffff", padding: "5px 14px",
-                fontSize: 13, fontWeight: 800,
-                display: "flex", alignItems: "center", gap: 6,
+                color: "#ffffff", padding: "0.6vh 1.5vw",
+                fontSize: "clamp(14px, 1.8vw, 28px)", fontWeight: 800,
+                display: "flex", alignItems: "center", gap: "0.5vw",
               }}
             >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>‹</span>
+              <span style={{ fontSize: "clamp(18px, 2.2vw, 34px)", lineHeight: 1 }}>‹</span>
               {lang === "uz" ? "Orqaga" : lang === "ru" ? "Назад" : "Back"}
             </button>
           ) : (
             <div style={{ display: "flex", alignItems: "center" }}>
               <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
-                style={{ height: 52, width: "auto", objectFit: "contain" }}
+                style={{ height: "clamp(48px, 7vh, 90px)", width: "auto", objectFit: "contain" }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             </div>
           )}
 
           {/* Language switcher */}
-          <div style={{ display: "flex", gap: 2, alignItems: "center", background: "rgba(0,0,0,.2)", borderRadius: 999, padding: 3 }}>
+          <div style={{ display: "flex", gap: "0.4vw", alignItems: "center", background: "rgba(0,0,0,.2)", borderRadius: 999, padding: "0.4vh" }}>
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLang(l.code)} style={{
-                border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 12px",
+                border: "none", cursor: "pointer", borderRadius: 999,
+                padding: "0.6vh 1.4vw",
                 background: lang === l.code ? "#ffffff" : "transparent",
                 color: lang === l.code ? "#003675" : "rgba(255,255,255,.7)",
-                fontWeight: 800, fontSize: 13,
+                fontWeight: 800, fontSize: "clamp(13px, 1.6vw, 24px)",
               }}>
                 {l.code.toUpperCase()}
               </button>
             ))}
           </div>
         </div>
-        {/* Back button continuation — seamless bottom strip */}
-        {menuStack.length > 0 && (
-          <div style={{ background: HEADER, borderRadius: "0 0 16px 16px", height: 6 }} />
-        )}
       </div>
 
       {/* ── TITLE ── */}
-      <div style={{ textAlign: "center", padding: "24px 24px 12px", flexShrink: 0 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: 0, color: TITLE_COLOR, margin: 0, textTransform: "uppercase", fontFamily: "Arial, Helvetica, sans-serif" }}>
+      <div style={{ textAlign: "center", padding: "3vh 2vw 1.5vh", flexShrink: 0 }}>
+        <h1 style={{ fontSize: "clamp(24px, 4vw, 56px)", fontWeight: 700, letterSpacing: 0, color: TITLE_COLOR, margin: 0, textTransform: "uppercase", fontFamily: "Arial, Helvetica, sans-serif" }}>
           {titleText}
         </h1>
         {currentMenuParent && (
-          <p style={{ margin: "8px 0 0", fontSize: 18, color: "rgba(255,255,255,.8)", fontWeight: 600 }}>
+          <p style={{ margin: "1vh 0 0", fontSize: "clamp(16px, 2vw, 30px)", color: "rgba(255,255,255,.8)", fontWeight: 600 }}>
             {lang === "uz" ? "Xizmatni tanlang" : lang === "ru" ? "Выберите услугу" : "Select a service"}
           </p>
         )}
       </div>
 
       {/* ── CARDS GRID ── */}
-      <div style={{ flex: 1, padding: "0 24px 24px", overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: "0 2vw 2vh", overflowY: "auto" }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-          maxWidth: 860,
+          gap: "clamp(12px, 1.5vw, 24px)",
+          maxWidth: 1000,
           margin: "0 auto",
+          height: "100%",
+          alignContent: "start",
         }}>
           {(hasMenus ? currentItems : (onlineQueues as any[])).map((item: any) => {
-            const isMenu = !!item.queue_group_id !== undefined && item.name !== undefined && item.label !== undefined;
             const isLeaf = hasMenus ? !!item.queue_group_id : true;
             const queue = hasMenus && isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : (hasMenus ? null : item);
             const queueGroupId = hasMenus ? item.queue_group_id : item.id;
@@ -413,13 +411,13 @@ function KioskPage() {
                 style={{
                   background: CARD_BG,
                   border: `1.5px solid ${CARD_BORDER}`,
-                  borderRadius: 20,
-                  padding: "28px 24px",
+                  borderRadius: "clamp(12px, 1.5vw, 24px)",
+                  padding: "clamp(20px, 3vh, 48px) clamp(16px, 2vw, 32px)",
                   cursor: issueMutation.isPending ? "not-allowed" : "pointer",
                   textAlign: "center",
                   color: CARD_TEXT,
                   fontFamily: "Arial, Helvetica, sans-serif",
-                  fontSize: 22,
+                  fontSize: "clamp(18px, 2.4vw, 36px)",
                   fontWeight: 700,
                   lineHeight: 1.3,
                   transition: "transform 0.1s, box-shadow 0.1s",
@@ -428,7 +426,7 @@ function KioskPage() {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  minHeight: 120,
+                  minHeight: "clamp(80px, 12vh, 160px)",
                   opacity: issueMutation.isPending ? 0.6 : 1,
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.02)"; }}
@@ -436,7 +434,7 @@ function KioskPage() {
               >
                 <span>{itemName}</span>
                 {(isLeaf || !hasMenus) && waitCount > 0 && (
-                  <span style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: "#1a56db" }}>
+                  <span style={{ marginTop: "0.8vh", fontSize: "clamp(12px, 1.4vw, 22px)", fontWeight: 600, color: "#1a56db" }}>
                     {waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}
                   </span>
                 )}
@@ -445,12 +443,12 @@ function KioskPage() {
           })}
 
           {hasMenus && currentItems.length === 0 && (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: 18 }}>
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: "clamp(16px, 2vw, 28px)" }}>
               {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
             </div>
           )}
           {!hasMenus && onlineQueues.length === 0 && (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: 18 }}>
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: "clamp(16px, 2vw, 28px)" }}>
               {t("noQueues")}
             </div>
           )}
@@ -458,9 +456,9 @@ function KioskPage() {
       </div>
 
       {/* ── FOOTER — date/time ── */}
-      <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
-        <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", borderRadius: 16 }}>
-          <span style={{ fontSize: 30, fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
+      <div style={{ padding: "0 2vw 2vh", flexShrink: 0 }}>
+        <div style={{ background: FOOTER_BG, padding: "1.8vh 3vw", textAlign: "center", borderRadius: "1.5vw" }}>
+          <span style={{ fontSize: "clamp(24px, 3.5vw, 52px)", fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
             {dateStr} {timeStr}
           </span>
         </div>
