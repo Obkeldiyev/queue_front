@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  authApi,
   queuesApi,
   countersApi,
   analyticsApi,
@@ -98,7 +99,7 @@ function calcWorkedSeconds(logs: AuditLog[]): number {
 }
 
 function OperatorView() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const {
     currentBranchId,
     operatorSessionActive,
@@ -120,6 +121,18 @@ function OperatorView() {
   useEffect(() => {
     void loadUser();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { data: freshUser } = useQuery({
+    queryKey: ["operator-auth-profile", user?.id],
+    queryFn: () => authApi.me(),
+    enabled: !!user?.id,
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true,
+  });
+
+  useEffect(() => {
+    if (freshUser?.id && user?.id === freshUser.id) setUser(freshUser);
+  }, [freshUser, setUser, user?.id]);
 
   const [activeTab, setActiveTab] = useState<"call" | "audit" | "online">("call");
 
@@ -152,7 +165,8 @@ function OperatorView() {
       name_uz: string;
       name_ru?: string;
       name_en?: string;
-      service?: { name_uz: string; estimated_time_mins?: number };
+      service_id?: string;
+      service?: { id?: string; name_uz: string; estimated_time_mins?: number };
     };
   };
   const rawQueueGroups = (counter?.queue_groups ?? []) as CounterQueueEntry[];
@@ -226,7 +240,7 @@ function OperatorView() {
 
   // ── Waiting tickets ───────────────────────────────────────────────────────
   const { data: waitingTickets = [] } = useQuery({
-    queryKey: ["tickets", branchId, "WAITING"],
+    queryKey: ["tickets", branchId, "WAITING", effectiveQueueIds.join(",")],
     queryFn: () =>
       queuesApi
         .listTickets({ branch_id: branchId, status: "WAITING", limit: "200" })
@@ -237,7 +251,7 @@ function OperatorView() {
 
   // ── Active tickets (CALLED/SERVING) ───────────────────────────────────────
   const { data: activeTickets = [] } = useQuery({
-    queryKey: ["tickets", branchId, "active"],
+    queryKey: ["tickets", branchId, "active", effectiveQueueIds.join(",")],
     queryFn: () =>
       queuesApi
         .listTickets({ branch_id: branchId, status: "CALLED,SERVING", limit: "100" })
@@ -249,7 +263,7 @@ function OperatorView() {
   const waiting = useMemo(() => {
     const all = waitingTickets as Ticket[];
     const filtered =
-      assignedCounterId && queueIds.length > 0
+      assignedCounterId && effectiveQueueIds.length > 0
         ? all.filter((t) => effectiveQueueIds.includes(t.queue_group_id))
         : [];
     return [...filtered].sort(
@@ -260,9 +274,9 @@ function OperatorView() {
   const current = useMemo(
     () =>
       (activeTickets as Ticket[]).find(
-        (t) => t.counter_id === assignedCounterId && ["CALLED", "SERVING"].includes(t.status),
+        (t) => t.counter_id === assignedCounterId && effectiveQueueIds.includes(t.queue_group_id) && ["CALLED", "SERVING"].includes(t.status),
       ),
-    [activeTickets, assignedCounterId],
+    [activeTickets, assignedCounterId, effectiveQueueIds],
   );
 
   // ── Audit ─────────────────────────────────────────────────────────────────
@@ -496,10 +510,10 @@ function OperatorView() {
                   </span>
                 )}
               </span>
-              {counterQueueNames.length > 0 ? (
+              {effectiveQueueIds.length > 0 ? (
                 <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
                   {lang === "uz" ? "Navbatlar" : lang === "ru" ? "Очереди" : "Queues"}:{" "}
-                  {counterQueueNames.join(", ")}
+                  {rawQueueGroups.filter((cq) => effectiveQueueIds.includes(cq.queue_group?.id ?? "")).map((cq) => cq.queue_group?.name_uz ?? "").filter(Boolean).join(", ")}
                 </p>
               ) : (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 font-medium">
@@ -568,7 +582,7 @@ function OperatorView() {
             operatorSessionActive={operatorSessionActive}
             lang={lang}
             t={t}
-            queueIds={queueIds}
+            queueIds={effectiveQueueIds}
             callNextMutation={callNextMutation}
             serveMutation={serveMutation}
             completeMutation={completeMutation}
