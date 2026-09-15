@@ -199,9 +199,11 @@ function OperatorView() {
   const operatorAllowedMenuIds = parseIds(rawAllowedMenuIds);
   const hasOperatorRestriction = rawAllowedServiceIds != null || rawAllowedMenuIds != null;
 
-  const queueIdsFromMenus = useMemo(() => {
+  const menuAccess = useMemo(() => {
     const allowedMenus = operatorAllowedMenuIds ?? [];
-    if (!allowedMenus.length) return new Set<string>();
+    const queueIds = new Set<string>();
+    const menuIds = new Set<string>();
+    if (!allowedMenus.length) return { queueIds, menuIds };
     const flat: Menu[] = [];
     const walk = (items: Menu[]) => {
       items.forEach((item) => {
@@ -217,15 +219,31 @@ function OperatorView() {
       list.push(menu);
       children.set(menu.parent_id, list);
     });
-    const result = new Set<string>();
     const visit = (menuId: string) => {
       const menu = flat.find((m) => m.id === menuId);
-      if (menu?.queue_group_id) result.add(menu.queue_group_id);
+      if (!menu) return;
+      menuIds.add(menu.id);
+      if (menu.queue_group_id) queueIds.add(menu.queue_group_id);
       (children.get(menuId) || []).forEach((child) => visit(child.id));
     };
     allowedMenus.forEach(visit);
-    return result;
+    return { queueIds, menuIds };
   }, [allMenus, operatorAllowedMenuIds]);
+
+  const directPermittedQueueIds = useMemo(() => {
+    const serviceOrQueueIds = operatorAllowedServiceIds ?? [];
+    if (!serviceOrQueueIds.length) return new Set<string>();
+    return new Set(
+      rawQueueGroups
+        .filter((cq) => {
+          const queueGroupId = cq.queue_group?.id ?? "";
+          const serviceId = (cq.queue_group?.service as any)?.id ?? (cq.queue_group as any)?.service_id ?? "";
+          return serviceOrQueueIds.includes(queueGroupId) || serviceOrQueueIds.includes(serviceId);
+        })
+        .map((cq) => cq.queue_group?.id ?? "")
+        .filter(Boolean),
+    );
+  }, [operatorAllowedServiceIds, rawQueueGroups]);
 
   const effectiveQueueIds = useMemo(() => {
     const serviceOrQueueIds = operatorAllowedServiceIds ?? [];
@@ -235,21 +253,27 @@ function OperatorView() {
     return rawQueueGroups
       .filter((cq) => {
         const queueGroupId = cq.queue_group?.id ?? "";
-        const serviceId = (cq.queue_group?.service as any)?.id ?? (cq.queue_group as any)?.service_id ?? "";
-        return serviceOrQueueIds.includes(queueGroupId) || serviceOrQueueIds.includes(serviceId) || queueIdsFromMenus.has(queueGroupId);
+        return directPermittedQueueIds.has(queueGroupId) || menuAccess.queueIds.has(queueGroupId);
       })
       .map((cq) => cq.queue_group?.id ?? "")
       .filter(Boolean);
-  }, [hasOperatorRestriction, operatorAllowedServiceIds, operatorAllowedMenuIds, queueIds, queueIdsFromMenus, rawQueueGroups]);
+  }, [hasOperatorRestriction, operatorAllowedServiceIds, operatorAllowedMenuIds, queueIds, directPermittedQueueIds, menuAccess, rawQueueGroups]);
+
+  const operatorCanSeeTicket = (ticket: Ticket) => {
+    if (!hasOperatorRestriction) return effectiveQueueIds.includes(ticket.queue_group_id);
+    if (directPermittedQueueIds.has(ticket.queue_group_id)) return true;
+    if (ticket.menu_id && menuAccess.menuIds.has(ticket.menu_id)) return true;
+    return false;
+  };
 
   // ── Waiting tickets ───────────────────────────────────────────────────────
   const { data: waitingTickets = [] } = useQuery({
     queryKey: ["tickets", branchId, "WAITING", effectiveQueueIds.join(",")],
     queryFn: () =>
       queuesApi
-        .listTickets({ branch_id: branchId, status: "WAITING", limit: "200" })
+        .listTickets({ branch_id: branchId, queue_group_ids: effectiveQueueIds.join(","), status: "WAITING", limit: "200" })
         .then((r) => r.data),
-    enabled: !!branchId,
+    enabled: !!branchId && (!hasOperatorRestriction || effectiveQueueIds.length > 0),
     refetchInterval: 4000,
   });
 
@@ -258,9 +282,9 @@ function OperatorView() {
     queryKey: ["tickets", branchId, "active", effectiveQueueIds.join(",")],
     queryFn: () =>
       queuesApi
-        .listTickets({ branch_id: branchId, status: "CALLED,SERVING", limit: "100" })
+        .listTickets({ branch_id: branchId, queue_group_ids: effectiveQueueIds.join(","), status: "CALLED,SERVING", limit: "100" })
         .then((r) => r.data),
-    enabled: !!branchId,
+    enabled: !!branchId && (!hasOperatorRestriction || effectiveQueueIds.length > 0),
     refetchInterval: 3000,
   });
 
@@ -268,7 +292,7 @@ function OperatorView() {
     const all = waitingTickets as Ticket[];
     const filtered =
       assignedCounterId && effectiveQueueIds.length > 0
-        ? all.filter((t) => effectiveQueueIds.includes(t.queue_group_id))
+        ? all.filter((t) => operatorCanSeeTicket(t))
         : [];
     return [...filtered].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -278,9 +302,9 @@ function OperatorView() {
   const current = useMemo(
     () =>
       (activeTickets as Ticket[]).find(
-        (t) => t.counter_id === assignedCounterId && effectiveQueueIds.includes(t.queue_group_id) && ["CALLED", "SERVING"].includes(t.status),
+        (t) => t.counter_id === assignedCounterId && operatorCanSeeTicket(t) && ["CALLED", "SERVING"].includes(t.status),
       ),
-    [activeTickets, assignedCounterId, effectiveQueueIds],
+    [activeTickets, assignedCounterId, effectiveQueueIds, directPermittedQueueIds, menuAccess, hasOperatorRestriction],
   );
 
   // ── Audit ─────────────────────────────────────────────────────────────────

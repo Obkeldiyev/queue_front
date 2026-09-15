@@ -221,9 +221,9 @@ function KioskPage() {
   const onlineQueues = (queues as QueueGroup[]).filter((q) => q.is_active);
 
   const issueMutation = useMutation({
-    mutationFn: (queueGroupId: string) =>
+    mutationFn: ({ queueGroupId, menuId }: { queueGroupId: string; menuId?: string }) =>
       queuesApi
-        .issueTicket({ queue_group_id: queueGroupId, branch_id: branchId })
+        .issueTicket({ queue_group_id: queueGroupId, menu_id: menuId, branch_id: branchId })
         .then((r) => r.data),
     onSuccess: (ticket) => {
       setIssuedTicket(ticket);
@@ -615,7 +615,7 @@ function KioskPage() {
                     disabled={issueMutation.isPending}
                     onClick={() => {
                       if (!hasMenus || item.queue_group_id)
-                        issueMutation.mutate(hasMenus ? item.queue_group_id : item.id);
+                        issueMutation.mutate({ queueGroupId: hasMenus ? item.queue_group_id : item.id, menuId: hasMenus ? item.id : undefined });
                       else setMenuStack((s) => [...s, item]);
                     }}
                   >
@@ -804,7 +804,7 @@ function KioskPage() {
                 disabled={issueMutation.isPending}
                 onClick={() => {
                   if (!hasMenus || (hasMenus && isLeaf && queueGroupId)) {
-                    issueMutation.mutate(hasMenus ? queueGroupId : item.id);
+                    issueMutation.mutate({ queueGroupId: hasMenus ? queueGroupId : item.id, menuId: hasMenus ? item.id : undefined });
                   } else {
                     setMenuStack((s) => [...s, item]);
                   }

@@ -28,6 +28,7 @@ export interface QueueGroup {
 export interface Ticket {
   id: string;
   queue_group_id: string;
+  menu_id?: string | null;
   branch_id: string;
   counter_id?: string;
   customer_id?: string;
@@ -42,6 +43,7 @@ export interface Ticket {
   wait_time_sec?: number;
   created_at: string;
   queue_group?: QueueGroup;
+  issued_menu?: { id: string; name?: string; name_uz?: string; name_ru?: string; name_en?: string; parent_id?: string | null };
   counter?: { id: string; name_uz: string; name_ru?: string; name_en?: string; number: number };
   customer?: { id: string; first_name?: string; last_name?: string; phone?: string };
 }
@@ -62,7 +64,7 @@ export const queuesApi = {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
     return api.get<Ticket[]>(`/queues/tickets/list${qs}`);
   },
-  issueTicket: (data: { queue_group_id: string; branch_id: string; customer_id?: string; priority?: number; notes?: string; is_online?: boolean }) =>
+  issueTicket: (data: { queue_group_id: string; menu_id?: string; branch_id: string; customer_id?: string; priority?: number; notes?: string; is_online?: boolean }) =>
     api.post<Ticket>("/queues/tickets/issue", data),
   callNext: (counter_id: string) =>
     api.post<Ticket>("/queues/tickets/call-next", { counter_id }),
