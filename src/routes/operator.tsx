@@ -193,8 +193,11 @@ function OperatorView() {
     }
   };
 
-  const operatorAllowedServiceIds = parseIds(user && (user as any).allowed_service_ids);
-  const operatorAllowedMenuIds = parseIds(user && (user as any).allowed_menu_ids);
+  const rawAllowedServiceIds = user && (user as any).allowed_service_ids;
+  const rawAllowedMenuIds = user && (user as any).allowed_menu_ids;
+  const operatorAllowedServiceIds = parseIds(rawAllowedServiceIds);
+  const operatorAllowedMenuIds = parseIds(rawAllowedMenuIds);
+  const hasOperatorRestriction = rawAllowedServiceIds != null || rawAllowedMenuIds != null;
 
   const queueIdsFromMenus = useMemo(() => {
     const allowedMenus = operatorAllowedMenuIds ?? [];
@@ -227,7 +230,8 @@ function OperatorView() {
   const effectiveQueueIds = useMemo(() => {
     const serviceOrQueueIds = operatorAllowedServiceIds ?? [];
     const menuIds = operatorAllowedMenuIds ?? [];
-    if (!serviceOrQueueIds.length && !menuIds.length) return queueIds;
+    if (!hasOperatorRestriction) return queueIds;
+    if (!serviceOrQueueIds.length && !menuIds.length) return [];
     return rawQueueGroups
       .filter((cq) => {
         const queueGroupId = cq.queue_group?.id ?? "";
@@ -236,7 +240,7 @@ function OperatorView() {
       })
       .map((cq) => cq.queue_group?.id ?? "")
       .filter(Boolean);
-  }, [operatorAllowedServiceIds, operatorAllowedMenuIds, queueIds, queueIdsFromMenus, rawQueueGroups]);
+  }, [hasOperatorRestriction, operatorAllowedServiceIds, operatorAllowedMenuIds, queueIds, queueIdsFromMenus, rawQueueGroups]);
 
   // ── Waiting tickets ───────────────────────────────────────────────────────
   const { data: waitingTickets = [] } = useQuery({

@@ -695,7 +695,24 @@ function ServiceRestrictCell({ currentIds, currentMenuIds, allQueues, allMenus, 
   };
 
   const save = () => {
-    onSave(restricted ? Array.from(selected) : null, restricted ? Array.from(selectedMenus) : null);
+    const menuCoveredQueueIds = new Set<string>();
+    if (restricted && selectedMenus.size) {
+      const byParent = new Map<string, Menu[]>();
+      flatMenus.forEach((menu) => {
+        if (!menu.parent_id) return;
+        const list = byParent.get(menu.parent_id) || [];
+        list.push(menu);
+        byParent.set(menu.parent_id, list);
+      });
+      const visit = (menuId: string) => {
+        const menu = flatMenus.find((item) => item.id === menuId);
+        if (menu?.queue_group_id) menuCoveredQueueIds.add(menu.queue_group_id);
+        (byParent.get(menuId) || []).forEach((child) => visit(child.id));
+      };
+      Array.from(selectedMenus).forEach(visit);
+    }
+    const serviceIds = Array.from(selected).filter((id) => !menuCoveredQueueIds.has(id));
+    onSave(restricted ? serviceIds : null, restricted ? Array.from(selectedMenus) : null);
     setOpen(false);
   };
 
@@ -780,13 +797,13 @@ function ServiceRestrictCell({ currentIds, currentMenuIds, allQueues, allMenus, 
                   {flatMenus.map((m) => {
                     const name = loc(m as unknown as Record<string, unknown>, "name", lang) || m.name;
                     return (
-                      <div key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted" style={{ paddingLeft: 8 + m.depth * 16 }} onClick={() => toggleMenu(m.id)}>
+                      <label key={m.id} className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted" style={{ paddingLeft: 8 + m.depth * 16 }}>
                         <Checkbox checked={selectedMenus.has(m.id)} onCheckedChange={() => toggleMenu(m.id)} />
-                        <label className="flex-1 cursor-pointer select-none text-sm">{name}</label>
+                        <span className="flex-1 select-none text-sm">{name}</span>
                         <Badge variant={m.queue_group_id ? "secondary" : "outline"} className="text-[10px]">
                           {m.queue_group_id ? L("service", "услуга", "xizmat") : L("menu", "меню", "menyu")}
                         </Badge>
-                      </div>
+                      </label>
                     );
                   })}
                 </div>
@@ -803,10 +820,10 @@ function ServiceRestrictCell({ currentIds, currentMenuIds, allQueues, allMenus, 
                   {allQueues.map((q) => {
                     const name = loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz;
                     return (
-                      <div key={q.id} className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted" onClick={() => toggle(q.id)}>
+                      <label key={q.id} className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted">
                         <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggle(q.id)} />
-                        <label className="flex-1 cursor-pointer select-none text-sm">{name}</label>
-                      </div>
+                        <span className="flex-1 select-none text-sm">{name}</span>
+                      </label>
                     );
                   })}
                 </div>
