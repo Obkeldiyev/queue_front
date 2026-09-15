@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  api,
   queuesApi,
   countersApi,
   analyticsApi,
@@ -236,6 +237,20 @@ function OperatorView() {
         .operatorStats(user!.id, { ...(branchId && { branch_id: branchId }), days: "30" })
         .then((r) => r.data),
     enabled: !!user?.id && activeTab === "audit",
+    refetchInterval: 60_000,
+  });
+
+  const { data: rules } = useQuery({
+    queryKey: ["operator-rules", user?.company_id],
+    queryFn: () =>
+      api
+        .get<{
+          instructions: string;
+          max_shift_hours: number;
+          max_service_minutes: number;
+        }>("/operations/rules")
+        .then((r) => r.data),
+    enabled: !!user?.company_id,
     refetchInterval: 60_000,
   });
 
@@ -511,6 +526,7 @@ function OperatorView() {
             noShowMutation={noShowMutation}
             transferMutation={transferMutation}
             counter={counter}
+            rules={rules}
           />
         ) : activeTab === "online" ? (
           <OperationsPanel />
@@ -545,6 +561,7 @@ interface CallTabProps {
   noShowMutation: { mutate: (id: string) => void; isPending: boolean };
   transferMutation: { mutate: (args: { id: string; to: string }) => void; isPending: boolean };
   counter: import("@/lib/api").Counter | undefined;
+  rules?: { instructions: string; max_shift_hours: number; max_service_minutes: number };
 }
 
 function CallTab({
@@ -564,11 +581,20 @@ function CallTab({
   noShowMutation,
   transferMutation,
   counter,
+  rules,
 }: CallTabProps) {
   const hasActive = !!current;
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
       <div className="space-y-4">
+        {rules?.instructions?.trim() && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-50">
+            <p className="font-semibold">
+              {lang === "ru" ? "Правила смены" : lang === "uz" ? "Smena qoidalari" : "Shift rules"}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap">{rules.instructions}</p>
+          </div>
+        )}
         <div className="rounded-2xl border bg-card p-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-medium text-muted-foreground">
