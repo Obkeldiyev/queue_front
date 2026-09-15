@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Ticket, Clock, UserX, TrendingUp } from "lucide-react";
 import { formatDuration } from "@/lib/queue-helpers";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/analytics")({
   beforeLoad: requireCompanyAdmin,
@@ -20,6 +21,8 @@ export const Route = createFileRoute("/app/analytics")({
 const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#10b981"];
 
 function Analytics() {
+  const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const { user } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
   const companyId = user?.company_id ?? currentCompanyId ?? "";
@@ -46,29 +49,29 @@ function Analytics() {
   }));
 
   const sourceData = [
-    { name: "Kiosk",  value: today?.kiosk  ?? 0 },
-    { name: "Online", value: today?.online ?? 0 },
+    { name: L("Kiosk", "Киоск", "Kiosk"),  value: today?.kiosk  ?? 0 },
+    { name: L("Online", "Онлайн", "Onlayn"), value: today?.online ?? 0 },
   ].filter((d) => d.value > 0);
 
   const statusCards = [
-    { label: "Total today",  value: total,               icon: Ticket,    color: "text-primary" },
-    { label: "Completed",    value: today?.completed ?? 0, icon: TrendingUp, color: "text-green-600" },
-    { label: "No-show",      value: today?.noShow    ?? 0, icon: UserX,     color: "text-red-500" },
-    { label: "Avg wait",     value: data?.avg_wait_sec ? formatDuration(data.avg_wait_sec) : "—",
+    { label: L("Total today", "Всего сегодня", "Bugun jami"),  value: total,               icon: Ticket,    color: "text-primary" },
+    { label: L("Completed", "Завершены", "Yakunlangan"),    value: today?.completed ?? 0, icon: TrendingUp, color: "text-green-600" },
+    { label: L("No-show", "Не явились", "Kelmagan"),      value: today?.noShow    ?? 0, icon: UserX,     color: "text-red-500" },
+    { label: L("Avg wait", "Сред. ожидание", "O‘rt. kutish"),     value: data?.avg_wait_sec ? formatDuration(data.avg_wait_sec) : "—",
       icon: Clock, color: "text-amber-600", isString: true },
   ];
 
   if (!companyId) return (
     <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
-      Select a company to view analytics.
+      {L("Select a company to view analytics.", "Выберите компанию, чтобы посмотреть аналитику.", "Analitikani ko‘rish uchun kompaniyani tanlang.")}
     </div>
   );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Analytics</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Today's live stats · refreshes every 15 s</p>
+        <h1 className="text-2xl font-bold">{L("Analytics", "Аналитика", "Analitika")}</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{L("Today’s live stats · refreshes every 15 s", "Живая статистика за сегодня · обновляется каждые 15 сек", "Bugungi jonli statistika · har 15 soniyada yangilanadi")}</p>
       </div>
 
       {/* Stat cards */}
@@ -93,15 +96,15 @@ function Analytics() {
       {/* Current queue status */}
       {today && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Current queue status</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{L("Current queue status", "Текущий статус очереди", "Navbatning joriy holati")}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-5 gap-3 text-center">
               {[
-                { label: "Waiting",   value: today.waiting,   color: "bg-amber-100 text-amber-800" },
-                { label: "Called",    value: today.called,    color: "bg-blue-100 text-blue-800" },
-                { label: "Serving",   value: today.serving,   color: "bg-purple-100 text-purple-800" },
-                { label: "Completed", value: today.completed, color: "bg-green-100 text-green-800" },
-                { label: "No-show",   value: today.noShow,   color: "bg-slate-100 text-slate-600" },
+                { label: L("Waiting", "Ожидают", "Kutmoqda"),   value: today.waiting,   color: "bg-amber-100 text-amber-800" },
+                { label: L("Called", "Вызваны", "Chaqirilgan"),    value: today.called,    color: "bg-blue-100 text-blue-800" },
+                { label: L("Serving", "Обслуживаются", "Xizmatda"),   value: today.serving,   color: "bg-purple-100 text-purple-800" },
+                { label: L("Completed", "Завершены", "Yakunlangan"), value: today.completed, color: "bg-green-100 text-green-800" },
+                { label: L("No-show", "Не явились", "Kelmagan"),   value: today.noShow,   color: "bg-slate-100 text-slate-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className={`rounded-xl p-4 ${color}`}>
                   <p className="text-3xl font-black">{value}</p>
@@ -116,11 +119,11 @@ function Analytics() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Hourly chart */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Tickets by hour</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{L("Tickets by hour", "Талоны по часам", "Chiptalar soatlar bo‘yicha")}</CardTitle></CardHeader>
           <CardContent>
             {hourlyData.length === 0 ? (
               <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                No data yet today
+                {L("No data yet today", "Сегодня данных пока нет", "Bugun hali ma’lumot yo‘q")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
@@ -138,10 +141,10 @@ function Analytics() {
 
         {/* Source pie */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Ticket source</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{L("Ticket source", "Источник талонов", "Chipta manbasi")}</CardTitle></CardHeader>
           <CardContent>
             {sourceData.length === 0 ? (
-              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">No data</div>
+              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">{L("No data", "Нет данных", "Ma’lumot yo‘q")}</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -162,16 +165,16 @@ function Analytics() {
       {/* Operator performance */}
       {(data?.operatorPerformance ?? []).length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Operator performance (last 30 days)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{L("Operator performance (last 30 days)", "Эффективность операторов (30 дней)", "Operatorlar samaradorligi (30 kun)")}</CardTitle></CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2 font-medium">Operator</th>
-                    <th className="pb-2 font-medium">Completed</th>
-                    <th className="pb-2 font-medium">Avg service</th>
-                    <th className="pb-2 font-medium">Avg wait</th>
+                    <th className="pb-2 font-medium">{L("Operator", "Оператор", "Operator")}</th>
+                    <th className="pb-2 font-medium">{L("Completed", "Завершено", "Yakunlangan")}</th>
+                    <th className="pb-2 font-medium">{L("Avg service", "Сред. обслуживание", "O‘rt. xizmat")}</th>
+                    <th className="pb-2 font-medium">{L("Avg wait", "Сред. ожидание", "O‘rt. kutish")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -192,4 +195,5 @@ function Analytics() {
     </div>
   );
 }
+
 

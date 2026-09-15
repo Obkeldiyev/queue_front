@@ -51,6 +51,7 @@ function Menus() {
   const { user } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
   const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const qc = useQueryClient();
   const companyId = user?.type === "company_user" ? user.company_id! : (currentCompanyId ?? "");
 
@@ -141,11 +142,11 @@ function Menus() {
         sort_order: menus.length,
       } as any),
     onSuccess: () => {
-      toast.success("Menu item created");
+      toast.success(L("Menu item created", "Пункт меню создан", "Menyu bandi yaratildi"));
       setDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ["menus"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")),
   });
 
   const updateMutation = useMutation({
@@ -161,17 +162,17 @@ function Menus() {
         is_visible: form.is_visible,
       } as any),
     onSuccess: () => {
-      toast.success("Updated");
+      toast.success(L("Updated", "Обновлено", "Yangilandi"));
       setDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ["menus"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => menusApi.delete(id),
     onSuccess: () => {
-      toast.success("Deleted");
+      toast.success(L("Deleted", "Удалено", "O‘chirildi"));
       void qc.invalidateQueries({ queryKey: ["menus"] });
     },
   });
@@ -201,7 +202,7 @@ function Menus() {
   if (!companyId) {
     return (
       <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
-        Select a company first.
+        {L("Select a company first.", "Сначала выберите компанию.", "Avval kompaniyani tanlang.")}
       </div>
     );
   }
@@ -211,13 +212,13 @@ function Menus() {
       {/* Header */}
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Kiosk Menu Builder</h1>
+          <h1 className="text-2xl font-bold">{L("Kiosk Menu Builder", "Конструктор меню киоска", "Kiosk menyu konstruktori")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Build a tree of menus for your kiosk. Leaf items (with a queue linked) issue tickets.
+            {L("Build a tree of menus for your kiosk. Leaf items with a linked queue issue tickets.", "Создайте дерево меню для киоска. Конечные пункты с очередью выдают талоны.", "Kiosk uchun menyu daraxtini tuzing. Navbatga bog‘langan yakuniy bandlar chipta beradi.")}
           </p>
         </div>
         <Button onClick={() => openCreate()}>
-          <Plus className="mr-1.5 h-4 w-4" /> Add menu item
+          <Plus className="mr-1.5 h-4 w-4" /> {L("Add menu item", "Добавить пункт меню", "Menyu bandini qo‘shish")}
         </Button>
       </div>
 
@@ -226,20 +227,20 @@ function Menus() {
         {[
           {
             icon: FolderOpen,
-            title: "Category",
-            desc: "No queue linked — navigates to sub-items",
+            title: L("Category", "Категория", "Kategoriya"),
+            desc: L("No queue linked — navigates to sub-items", "Очередь не привязана — открывает подпункты", "Navbat ulanmagan — ichki bandlarga o‘tadi"),
             color: "text-blue-600",
           },
           {
             icon: Ticket,
-            title: "Service",
-            desc: "Queue linked — tapping issues a ticket",
+            title: L("Service", "Услуга", "Xizmat"),
+            desc: L("Queue linked — tapping issues a ticket", "Очередь привязана — нажатие выдаёт талон", "Navbat ulangan — bosilganda chipta beradi"),
             color: "text-green-600",
           },
           {
             icon: ChevronRight,
-            title: "Nesting",
-            desc: "Categories can contain categories or services",
+            title: L("Nesting", "Вложенность", "Ichma-ichlik"),
+            desc: L("Categories can contain categories or services", "Категории могут содержать категории или услуги", "Kategoriyalar ichida kategoriya yoki xizmat bo‘lishi mumkin"),
             color: "text-purple-600",
           },
         ].map(({ icon: Icon, title, desc, color }) => (
@@ -262,9 +263,9 @@ function Menus() {
       ) : menus.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
           <FolderOpen className="mx-auto mb-3 h-8 w-8 opacity-30" />
-          <p className="font-medium">No menu items yet</p>
+          <p className="font-medium">{L("No menu items yet", "Пунктов меню пока нет", "Hali menyu bandlari yo‘q")}</p>
           <p className="mt-1 text-sm">
-            Create your first item above. Add categories then link services to queues.
+            {L("Create your first item above. Add categories then link services to queues.", "Создайте первый пункт выше. Добавьте категории, затем свяжите услуги с очередями.", "Yuqoridan birinchi bandni yarating. Kategoriyalar qo‘shib, xizmatlarni navbatlarga ulang.")}
           </p>
         </div>
       ) : (
@@ -299,14 +300,14 @@ function Menus() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editItem ? "Edit menu item" : parentId ? "Add sub-item" : "Add menu item"}
+              {editItem ? L("Edit menu item", "Изменить пункт меню", "Menyu bandini tahrirlash") : parentId ? L("Add sub-item", "Добавить подпункт", "Ichki band qo‘shish") : L("Add menu item", "Добавить пункт меню", "Menyu bandini qo‘shish")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {/* 3-language name fields */}
             <div className="rounded-lg border p-3 space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Name (3 languages)
+                {L("Name (3 languages)", "Название (3 языка)", "Nomi (3 til)")}
               </p>
               <div>
                 <Label className="text-xs">🇺🇿 O'zbekcha *</Label>
@@ -344,9 +345,9 @@ function Menus() {
             <div>
               <Label className="flex items-center gap-1.5">
                 <Ticket className="h-3.5 w-3.5 text-green-600" />
-                Link to queue
+                {L("Link to queue", "Связать с очередью", "Navbatga ulash")}
                 <span className="text-xs text-muted-foreground font-normal ml-1">
-                  (leave blank to make this a navigation category)
+                  {L("(leave blank to make this a navigation category)", "(оставьте пустым для категории навигации)", "(navigatsiya kategoriyasi bo‘lishi uchun bo‘sh qoldiring)")}
                 </span>
               </Label>
               <Select
@@ -356,17 +357,17 @@ function Menus() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="No queue — category only" />
+                  <SelectValue placeholder={L("No queue — category only", "Без очереди — только категория", "Navbatsiz — faqat kategoriya")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <FolderOpen className="h-3.5 w-3.5" /> No queue — category
+                      <FolderOpen className="h-3.5 w-3.5" /> {L("No queue — category", "Без очереди — категория", "Navbatsiz — kategoriya")}
                     </span>
                   </SelectItem>
                   {(queues as QueueGroup[]).length === 0 ? (
                     <div className="px-3 py-2 text-xs text-muted-foreground">
-                      No queues found — create queues first
+                      {L("No queues found — create queues first", "Очереди не найдены — сначала создайте очереди", "Navbatlar topilmadi — avval navbat yarating")}
                     </div>
                   ) : (
                     (queues as QueueGroup[]).map((q) => (
@@ -383,11 +384,11 @@ function Menus() {
               </Select>
               {form.queue_group_id ? (
                 <p className="mt-1 text-xs text-green-600">
-                  ✓ Tapping this item on the kiosk will issue a ticket
+                  ✓ {L("Tapping this item on the kiosk will issue a ticket", "Нажатие на этот пункт в киоске выдаст талон", "Kioskda bu band bosilganda chipta beriladi")}
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  This item will open its sub-items when tapped
+                  {L("This item will open its sub-items when tapped", "Этот пункт откроет подпункты при нажатии", "Bu band bosilganda ichki bandlarni ochadi")}
                 </p>
               )}
             </div>
@@ -397,18 +398,16 @@ function Menus() {
                 checked={form.is_visible}
                 onCheckedChange={(v) => setForm({ ...form, is_visible: v })}
               />
-              <Label>Visible on kiosk</Label>
+              <Label>{L("Visible on kiosk", "Показывать в киоске", "Kioskda ko‘rsatish")}</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{L("Cancel", "Отмена", "Bekor qilish")}</Button>
             <Button
               onClick={() => (editItem ? updateMutation.mutate() : createMutation.mutate())}
               disabled={!form.name_uz || createMutation.isPending || updateMutation.isPending}
             >
-              {editItem ? "Save" : "Create"}
+              {editItem ? L("Save", "Сохранить", "Saqlash") : L("Create", "Создать", "Yaratish")}
             </Button>
           </DialogFooter>
         </DialogContent>

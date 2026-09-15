@@ -53,6 +53,7 @@ export const Route = createFileRoute("/app/companies")({
 function SuperAdminCompanies() {
   const { user, logout } = useAuthStore();
   const { t, lang, setLang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -110,7 +111,7 @@ function SuperAdminCompanies() {
       return comp;
     },
     onSuccess: () => {
-      toast.success("Company created with admin account");
+      toast.success(L("Company created with admin account", "Компания создана с админом", "Kompaniya admin bilan yaratildi"));
       setOpen(false);
       setForm({
         name: "",
@@ -125,16 +126,16 @@ function SuperAdminCompanies() {
       });
       void qc.invalidateQueries({ queryKey: ["companies-all"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error creating company"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Error creating company", "Ошибка создания компании", "Kompaniya yaratishda xatolik")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => companiesApi.delete(id),
     onSuccess: () => {
-      toast.success("Company deleted");
+      toast.success(L("Company deleted", "Компания удалена", "Kompaniya o‘chirildi"));
       void qc.invalidateQueries({ queryKey: ["companies-all"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Failed to delete", "Не удалось удалить", "O‘chirish amalga oshmadi")),
   });
 
   const handleLogout = async () => {
@@ -158,7 +159,7 @@ function SuperAdminCompanies() {
         </div>
         <div>
           <span className="font-bold text-sm">Qubit QMS</span>
-          <span className="ml-2 text-xs text-muted-foreground">— Platform Admin</span>
+          <span className="ml-2 text-xs text-muted-foreground">— {L("Platform Admin", "Админ платформы", "Platforma admini")}</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
@@ -202,30 +203,30 @@ function SuperAdminCompanies() {
         {/* Page header */}
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Companies</h1>
+            <h1 className="text-2xl font-bold">{L("Companies", "Компании", "Kompaniyalar")}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              All tenants on the platform. Each company gets their own admin, branches, and queues.
+              {L("All tenants on the platform. Each company gets their own admin, branches, and queues.", "Все компании на платформе. У каждой есть свой админ, филиалы и очереди.", "Platformadagi barcha kompaniyalar. Har birida admin, filiallar va navbatlar bor.")}
             </p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-1.5 h-4 w-4" /> New company
+                <Plus className="mr-1.5 h-4 w-4" /> {L("New company", "Новая компания", "Yangi kompaniya")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Create company</DialogTitle>
+                <DialogTitle>{L("Create company", "Создать компанию", "Kompaniya yaratish")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {/* Company details */}
+                {/* {L("Company details", "Данные компании", "Kompaniya ma’lumotlari")} */}
                 <div className="rounded-lg bg-muted/50 p-3 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Company details
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label>Name *</Label>
+                      <Label>{L("Name *", "Название *", "Nomi *")}</Label>
                       <Input
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -235,7 +236,7 @@ function SuperAdminCompanies() {
                     </div>
                     <div>
                       <Label>
-                        Slug <span className="text-muted-foreground text-xs">(URL key)</span>
+                        {L("Slug", "Слаг", "Slug")} <span className="text-muted-foreground text-xs">{L("(URL key)", "(ключ URL)", "(URL kaliti)")}</span>
                       </Label>
                       <Input
                         value={form.slug}
@@ -247,7 +248,7 @@ function SuperAdminCompanies() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label>Phone</Label>
+                      <Label>{L("Phone", "Телефон", "Telefon")}</Label>
                       <Input
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -255,7 +256,7 @@ function SuperAdminCompanies() {
                       />
                     </div>
                     <div>
-                      <Label>Email</Label>
+                      <Label>{L("Email", "Email", "Email")}</Label>
                       <Input
                         type="email"
                         value={form.email}
@@ -269,11 +270,11 @@ function SuperAdminCompanies() {
                 {/* Admin account */}
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-                    Company admin account <span className="text-blue-500">(optional)</span>
+                    {L("Company admin account", "Админ компании", "Kompaniya admini")} <span className="text-blue-500">{L("(optional)", "(необязательно)", "(ixtiyoriy)")}</span>
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label>First name</Label>
+                      <Label>{L("First name", "Имя", "Ism")}</Label>
                       <Input
                         value={form.admin_first_name}
                         onChange={(e) => setForm({ ...form, admin_first_name: e.target.value })}
@@ -281,7 +282,7 @@ function SuperAdminCompanies() {
                       />
                     </div>
                     <div>
-                      <Label>Last name</Label>
+                      <Label>{L("Last name", "Фамилия", "Familiya")}</Label>
                       <Input
                         value={form.admin_last_name}
                         onChange={(e) => setForm({ ...form, admin_last_name: e.target.value })}
@@ -290,7 +291,7 @@ function SuperAdminCompanies() {
                     </div>
                   </div>
                   <div>
-                    <Label>Admin email</Label>
+                    <Label>{L("Admin email", "Email админа", "Admin emaili")}</Label>
                     <Input
                       type="email"
                       value={form.admin_email}
@@ -300,26 +301,24 @@ function SuperAdminCompanies() {
                     />
                   </div>
                   <div>
-                    <Label>Admin password</Label>
+                    <Label>{L("Admin password", "Пароль админа", "Admin paroli")}</Label>
                     <Input
                       type="password"
                       value={form.admin_password}
                       onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
                       className="mt-1"
-                      placeholder="Min 8 characters"
+                      placeholder={L("Min 8 characters", "Минимум 8 символов", "Kamida 8 belgi")}
                     />
                   </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>{L("Cancel", "Отмена", "Bekor qilish")}</Button>
                 <Button
                   onClick={() => createMutation.mutate()}
                   disabled={!form.name || createMutation.isPending}
                 >
-                  {createMutation.isPending ? "Creating…" : "Create company"}
+                  {createMutation.isPending ? L("Creating…", "Создание…", "Yaratilmoqda…") : L("Create company", "Создать компанию", "Kompaniya yaratish")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -342,9 +341,9 @@ function SuperAdminCompanies() {
               label: t("devices"),
               value: companies.reduce((n, c) => n + (c._count?.devices || 0), 0),
             },
-            { label: "Active", value: companies.filter((c) => c.status === "ACTIVE").length },
-            { label: "Trial", value: companies.filter((c) => c.status === "TRIAL").length },
-            { label: "Suspended", value: companies.filter((c) => c.status === "SUSPENDED").length },
+            { label: L("Active", "Активные", "Faol"), value: companies.filter((c) => c.status === "ACTIVE").length },
+            { label: L("Trial", "Пробные", "Sinov"), value: companies.filter((c) => c.status === "TRIAL").length },
+            { label: L("Suspended", "Заблокированы", "To‘xtatilgan"), value: companies.filter((c) => c.status === "SUSPENDED").length },
           ].map(({ label, value }) => (
             <div key={label} className="rounded-xl border bg-card p-4 text-center">
               <p className="text-2xl font-black">{value}</p>
@@ -375,8 +374,8 @@ function SuperAdminCompanies() {
         ) : companies.length === 0 ? (
           <div className="rounded-xl border border-dashed p-16 text-center text-muted-foreground">
             <Building2 className="mx-auto mb-3 h-10 w-10 opacity-25" />
-            <p className="font-medium">No companies yet</p>
-            <p className="mt-1 text-sm">Create the first company to get started.</p>
+            <p className="font-medium">{L("No companies yet", "Компаний пока нет", "Hali kompaniyalar yo‘q")}</p>
+            <p className="mt-1 text-sm">{L("Create the first company to get started.", "Создайте первую компанию, чтобы начать.", "Boshlash uchun birinchi kompaniyani yarating.")}</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -413,7 +412,7 @@ function SuperAdminCompanies() {
                               }
                             }}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete company
+                            <Trash2 className="mr-2 h-4 w-4" /> {L("Delete company", "Удалить компанию", "Kompaniyani o‘chirish")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -432,9 +431,9 @@ function SuperAdminCompanies() {
 
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       {[
-                        { icon: GitBranch, label: "Branches", val: c._count?.branches ?? 0 },
-                        { icon: Users, label: "Users", val: c._count?.users ?? 0 },
-                        { icon: Cpu, label: "Devices", val: c._count?.devices ?? 0 },
+                        { icon: GitBranch, label: L("Branches", "Филиалы", "Filiallar"), val: c._count?.branches ?? 0 },
+                        { icon: Users, label: L("Users", "Пользователи", "Foydalanuvchilar"), val: c._count?.users ?? 0 },
+                        { icon: Cpu, label: L("Devices", "Устройства", "Qurilmalar"), val: c._count?.devices ?? 0 },
                       ].map(({ icon: Icon, label, val }) => (
                         <div key={label} className="rounded-lg bg-muted/50 p-2">
                           <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-muted-foreground" />
@@ -446,7 +445,7 @@ function SuperAdminCompanies() {
 
                     {c.email && <p className="text-xs text-muted-foreground truncate">{c.email}</p>}
                     <p className="text-xs text-muted-foreground">
-                      Created: {new Date(c.created_at).toLocaleDateString()}
+                      {L("Created", "Создано", "Yaratilgan")}: {new Date(c.created_at).toLocaleDateString()}
                     </p>
                   </CardContent>
                 </Card>

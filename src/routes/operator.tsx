@@ -6,8 +6,10 @@ import {
   countersApi,
   analyticsApi,
   auditApi,
+  menusApi,
   type Ticket,
   type AuditLog,
+  type Menu,
 } from "@/lib/api";
 import { getUserFromStorage, useAuthStore } from "@/lib/auth-store";
 import { useStore } from "@/lib/store";
@@ -159,23 +161,68 @@ function OperatorView() {
     .map((cq) => cq.queue_group?.name_uz ?? "")
     .filter(Boolean);
 
-  // If the operator has allowed_service_ids, filter counter queue groups to only those services
-  const operatorAllowedServiceIdsRaw = user && (user as any).allowed_service_ids;
-  const operatorAllowedServiceIds: string[] | null = operatorAllowedServiceIdsRaw
-    ? Array.isArray(operatorAllowedServiceIdsRaw)
-      ? operatorAllowedServiceIdsRaw
-      : JSON.parse(String(operatorAllowedServiceIdsRaw))
-    : null;
+  const { data: allMenus = [] } = useQuery({
+    queryKey: ["menus-operator", user?.company_id],
+    queryFn: () => menusApi.list({ company_id: user!.company_id! }).then((r) => r.data),
+    enabled: !!user?.company_id,
+    staleTime: 60_000,
+  });
 
-  const effectiveQueueIds =
-    operatorAllowedServiceIds && operatorAllowedServiceIds.length > 0
-      ? rawQueueGroups
-          .filter((cq) =>
-            operatorAllowedServiceIds?.includes((cq.queue_group?.service as any)?.id ?? ""),
-          )
-          .map((cq) => cq.queue_group?.id ?? "")
-          .filter(Boolean)
-      : queueIds;
+  const parseIds = (value: unknown): string[] | null => {
+    if (value == null) return null;
+    if (Array.isArray(value)) return value.filter((id): id is string => typeof id === "string");
+    try {
+      const parsed = JSON.parse(String(value));
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const operatorAllowedServiceIds = parseIds(user && (user as any).allowed_service_ids);
+  const operatorAllowedMenuIds = parseIds(user && (user as any).allowed_menu_ids);
+
+  const queueIdsFromMenus = useMemo(() => {
+    const allowedMenus = operatorAllowedMenuIds ?? [];
+    if (!allowedMenus.length) return new Set<string>();
+    const flat: Menu[] = [];
+    const walk = (items: Menu[]) => {
+      items.forEach((item) => {
+        flat.push(item);
+        walk(item.children || []);
+      });
+    };
+    walk(allMenus as Menu[]);
+    const children = new Map<string, Menu[]>();
+    flat.forEach((menu) => {
+      if (!menu.parent_id) return;
+      const list = children.get(menu.parent_id) || [];
+      list.push(menu);
+      children.set(menu.parent_id, list);
+    });
+    const result = new Set<string>();
+    const visit = (menuId: string) => {
+      const menu = flat.find((m) => m.id === menuId);
+      if (menu?.queue_group_id) result.add(menu.queue_group_id);
+      (children.get(menuId) || []).forEach((child) => visit(child.id));
+    };
+    allowedMenus.forEach(visit);
+    return result;
+  }, [allMenus, operatorAllowedMenuIds]);
+
+  const effectiveQueueIds = useMemo(() => {
+    const serviceOrQueueIds = operatorAllowedServiceIds ?? [];
+    const menuIds = operatorAllowedMenuIds ?? [];
+    if (!serviceOrQueueIds.length && !menuIds.length) return queueIds;
+    return rawQueueGroups
+      .filter((cq) => {
+        const queueGroupId = cq.queue_group?.id ?? "";
+        const serviceId = (cq.queue_group?.service as any)?.id ?? (cq.queue_group as any)?.service_id ?? "";
+        return serviceOrQueueIds.includes(queueGroupId) || serviceOrQueueIds.includes(serviceId) || queueIdsFromMenus.has(queueGroupId);
+      })
+      .map((cq) => cq.queue_group?.id ?? "")
+      .filter(Boolean);
+  }, [operatorAllowedServiceIds, operatorAllowedMenuIds, queueIds, queueIdsFromMenus, rawQueueGroups]);
 
   // ── Waiting tickets ───────────────────────────────────────────────────────
   const { data: waitingTickets = [] } = useQuery({
@@ -203,12 +250,12 @@ function OperatorView() {
     const all = waitingTickets as Ticket[];
     const filtered =
       assignedCounterId && queueIds.length > 0
-        ? all.filter((t) => queueIds.includes(t.queue_group_id))
+        ? all.filter((t) => effectiveQueueIds.includes(t.queue_group_id))
         : [];
     return [...filtered].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
-  }, [waitingTickets, queueIds, assignedCounterId]);
+  }, [waitingTickets, effectiveQueueIds, assignedCounterId]);
 
   const current = useMemo(
     () =>
@@ -379,6 +426,9 @@ function OperatorView() {
               </button>
             ))}
           </div>
+          <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
+            {user?.avatar_url ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" /> : `${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`}
+          </span>
           <span className="hidden text-xs text-muted-foreground md:block">
             {user?.first_name} {user?.last_name}
           </span>
@@ -584,6 +634,7 @@ function CallTab({
   rules,
 }: CallTabProps) {
   const hasActive = !!current;
+  const hasServingTicket = current?.status === "SERVING";
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
       <div className="space-y-4">
@@ -735,7 +786,7 @@ function CallTab({
                 callNextMutation.isPending ||
                 !assignedCounterId ||
                 !operatorSessionActive ||
-                hasActive ||
+                hasServingTicket ||
                 queueIds.length === 0
               }
             >
@@ -757,13 +808,22 @@ function CallTab({
                     : "No queues are assigned to your counter"}
               </p>
             )}
-            {hasActive && operatorSessionActive && (
+            {hasServingTicket && operatorSessionActive && (
               <p className="text-xs text-muted-foreground">
                 {lang === "uz"
-                  ? "Avval joriy chiptani tugatng"
+                  ? "Avval joriy chiptani tugating"
                   : lang === "ru"
                     ? "Сначала завершите текущий талон"
                     : "Complete the current ticket first"}
+              </p>
+            )}
+            {current?.status === "CALLED" && operatorSessionActive && waiting.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "uz"
+                  ? "Keyingisini chaqirsangiz, hozirgi chaqirilgan chipta kelmagan deb belgilanadi"
+                  : lang === "ru"
+                    ? "Если вызвать следующий, текущий вызванный талон станет неявкой"
+                    : "Calling the next ticket will mark the current called ticket as no-show"}
               </p>
             )}
           </div>

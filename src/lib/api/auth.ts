@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   first_name: string;
   last_name: string;
+  avatar_url?: string | null;
   type: "platform_user" | "company_user";
   company_id?: string;
   branch_id?: string;

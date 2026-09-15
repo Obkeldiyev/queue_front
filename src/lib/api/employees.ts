@@ -6,10 +6,12 @@ export interface Employee {
   branch_id?: string;
   default_counter_id?: string;
   allowed_service_ids?: string[] | null;
+  allowed_menu_ids?: string[] | null;
   first_name: string;
   last_name: string;
   email: string;
   phone?: string;
+  avatar_url?: string | null;
   status: string;
   last_login_at?: string;
   created_at: string;
@@ -40,6 +42,7 @@ export const employeesApi = {
     password: string;
     branch_id?: string;
     phone?: string;
+    avatar_url?: string | null;
     role_ids?: string[];
     company_id?: string;
   }) => api.post<Employee>("/employees", data),

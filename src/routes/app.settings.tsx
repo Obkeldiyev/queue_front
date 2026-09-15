@@ -20,6 +20,8 @@ export const Route = createFileRoute("/app/settings")({
 
 function Settings() {
   const { user } = useAuthStore();
+  const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const { currentCompanyId } = useStore();
   const { t } = useLang();
   const qc = useQueryClient();
@@ -58,10 +60,10 @@ function Settings() {
   const updateMutation = useMutation({
     mutationFn: () => companiesApi.update(companyId, form),
     onSuccess: () => {
-      toast.success("Settings saved");
+      toast.success(L("Settings saved", "Настройки сохранены", "Sozlamalar saqlandi"));
       void qc.invalidateQueries({ queryKey: ["company", companyId] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Failed to save", "Не удалось сохранить", "Saqlab bo‘lmadi")),
   });
 
   return (
@@ -69,17 +71,17 @@ function Settings() {
       <RulesPanel />
       <div>
         <h1 className="text-2xl font-bold">{t("settings")}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Company profile and preferences</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{L("Company profile and preferences", "Профиль и настройки компании", "Kompaniya profili va sozlamalari")}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Company information</CardTitle>
+          <CardTitle>{L("Company information", "Информация о компании", "Kompaniya ma’lumotlari")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Company name</Label>
+              <Label>{L("Company name", "Название компании", "Kompaniya nomi")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -87,7 +89,7 @@ function Settings() {
               />
             </div>
             <div>
-              <Label>Timezone</Label>
+              <Label>{L("Timezone", "Часовой пояс", "Vaqt zonasi")}</Label>
               <Input
                 value={form.timezone}
                 onChange={(e) => setForm({ ...form, timezone: e.target.value })}
@@ -97,7 +99,7 @@ function Settings() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Phone</Label>
+              <Label>{L("Phone", "Телефон", "Telefon")}</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -105,7 +107,7 @@ function Settings() {
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>{L("Email", "Email", "Email")}</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -115,7 +117,7 @@ function Settings() {
             </div>
           </div>
           <div>
-            <Label>Website</Label>
+            <Label>{L("Website", "Сайт", "Veb-sayt")}</Label>
             <Input
               value={form.website}
               onChange={(e) => setForm({ ...form, website: e.target.value })}
@@ -124,7 +126,7 @@ function Settings() {
             />
           </div>
           <div>
-            <Label>Address</Label>
+            <Label>{L("Address", "Адрес", "Manzil")}</Label>
             <Input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -132,7 +134,7 @@ function Settings() {
             />
           </div>
           <div>
-            <Label>Brand color</Label>
+            <Label>{L("Brand color", "Цвет бренда", "Brend rangi")}</Label>
             <div className="mt-1 flex items-center gap-3">
               <input
                 type="color"
@@ -149,10 +151,11 @@ function Settings() {
             </div>
           </div>
           <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Saving…" : t("save")}
+            {updateMutation.isPending ? L("Saving…", "Сохранение…", "Saqlanmoqda…") : t("save")}
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
+

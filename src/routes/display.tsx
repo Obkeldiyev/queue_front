@@ -37,6 +37,37 @@ interface Announced {
   counter_number?: number;
 }
 
+const DISPLAY_CALL_SOUND_URL = "/sounds/universfield-attention-chime-123107.mp3";
+let displayCallAudio: HTMLAudioElement | null = null;
+
+function getDisplayCallAudio() {
+  if (typeof window === "undefined") return null;
+  if (!displayCallAudio) {
+    displayCallAudio = new Audio(DISPLAY_CALL_SOUND_URL);
+    displayCallAudio.preload = "auto";
+    displayCallAudio.volume = 0.9;
+  }
+  return displayCallAudio;
+}
+
+function prepareDisplayCallSound() {
+  const audio = getDisplayCallAudio();
+  if (!audio) return;
+  audio.load();
+}
+
+function playDisplayCallSound() {
+  const audio = getDisplayCallAudio();
+  if (!audio) return;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  } catch {
+    /* Browser may block audio before user interaction; ignore silently on billboard. */
+  }
+}
+
 function DisplayView() {
   const { lang, setLang } = useLang();
   const qc = useQueryClient();
@@ -54,11 +85,22 @@ function DisplayView() {
   const isDark = displayTheme !== "light";
   const [announced, setAnnounced] = useState<Announced | null>(null);
   const announceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seenCalledTicketKeys = useRef<Set<string>>(new Set());
+  const hasLoadedCalledTickets = useRef(false);
 
   useEffect(() => {
     const tm = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(tm);
   }, []);
+
+  useEffect(() => {
+    prepareDisplayCallSound();
+  }, []);
+
+  useEffect(() => {
+    seenCalledTicketKeys.current = new Set();
+    hasLoadedCalledTickets.current = false;
+  }, [branchId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -181,6 +223,7 @@ function DisplayView() {
       const num = msg.payload.ticket_number;
       const cname = String(msg.payload.counter_name ?? "");
       if (num) {
+        playDisplayCallSound();
         if (announceTimer.current) clearTimeout(announceTimer.current);
         const c = counters.find((x) => x.name_uz === cname || x.id === msg.payload.counter_id);
         setAnnounced({
@@ -194,6 +237,30 @@ function DisplayView() {
     onTicketIssued: () =>
       void qc.invalidateQueries({ queryKey: ["tickets-display-waiting", branchId] }),
   });
+
+  useEffect(() => {
+    if (!branchId || calledTickets.length === 0) {
+      hasLoadedCalledTickets.current = true;
+      return;
+    }
+    const currentKeys = new Set(
+      (calledTickets as Ticket[]).map((ticket) =>
+        [ticket.id, ticket.counter_id ?? "", ticket.called_at ?? ""].join(":"),
+      ),
+    );
+    if (!hasLoadedCalledTickets.current) {
+      seenCalledTicketKeys.current = currentKeys;
+      hasLoadedCalledTickets.current = true;
+      return;
+    }
+    const previousKeys = seenCalledTicketKeys.current;
+    const newestCalled = [...(calledTickets as Ticket[])].find((ticket) =>
+      !previousKeys.has([ticket.id, ticket.counter_id ?? "", ticket.called_at ?? ""].join(":")) &&
+      ticket.status === "CALLED",
+    );
+    seenCalledTicketKeys.current = currentKeys;
+    if (newestCalled) playDisplayCallSound();
+  }, [branchId, calledTickets]);
 
   // Map counter_id → ticket for serving rows
   const counterTicketMap = new Map<string, Ticket>();
@@ -644,3 +711,5 @@ function DisplayView() {
     </div>
   );
 }
+
+

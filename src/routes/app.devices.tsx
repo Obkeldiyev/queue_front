@@ -3,7 +3,7 @@ import { requireCompanyAdmin } from "@/lib/guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth-store";
 import { useStore } from "@/lib/store";
-import { useLang } from "@/lib/i18n";
+import { useLang, loc } from "@/lib/i18n";
 import { devicesApi, branchesApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import { useState } from "react";
 import {
   Plus,
   Trash2,
+  Pencil,
   Cpu,
   Wifi,
   WifiOff,
@@ -70,6 +71,11 @@ const STATUS_COLOR: Record<string, string> = {
   UNREGISTERED: "border-slate-300 text-slate-400",
 };
 
+function LL(en: string, ru: string, uz: string) {
+  const lang = typeof window !== "undefined" ? localStorage.getItem("qms-lang") : "en";
+  return lang === "ru" ? ru : lang === "uz" ? uz : en;
+}
+
 function deviceMode(type: string): "kiosk" | "display" | "operator" | "pair" {
   if (type === "TICKET_PRINTER") return "pair";
   if (type.includes("KIOSK")) return "kiosk";
@@ -82,14 +88,14 @@ function deviceLaunchLinks(type: string, branchId: string, deviceId: string) {
   if (mode === "pair") {
     return [
       {
-        label: "Printer setup",
+        label: LL("Printer setup", "Настройка принтера", "Printer sozlamasi"),
         url: buildDeviceLink("kiosk", branchId, deviceId) + "&setup=printer",
       },
     ];
   }
   return [
     {
-      label: mode[0].toUpperCase() + mode.slice(1),
+      label: mode === "kiosk" ? LL("Kiosk", "Киоск", "Kiosk") : mode === "display" ? LL("Display", "Экран", "Ekran") : mode === "operator" ? LL("Operator", "Оператор", "Operator") : mode,
       url: buildDeviceLink(mode, branchId, deviceId),
     },
   ];
@@ -116,7 +122,7 @@ async function downloadKioskConfig(url: string, deviceId: string) {
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const j = await resp.json().catch(() => ({}));
-      toast.error(j.message || "Failed to build kiosk");
+      toast.error(j.message || LL("Failed to build kiosk", "Не удалось собрать киоск", "Kioskni yig‘ib bo‘lmadi"));
       return;
     }
     if (
@@ -127,7 +133,7 @@ async function downloadKioskConfig(url: string, deviceId: string) {
       const text = await resp.text();
       try {
         const j = JSON.parse(text);
-        toast.error(j.message || "Failed to build kiosk");
+        toast.error(j.message || LL("Failed to build kiosk", "Не удалось собрать киоск", "Kioskni yig‘ib bo‘lmadi"));
         return;
       } catch {
         /* fallthrough */
@@ -141,7 +147,7 @@ async function downloadKioskConfig(url: string, deviceId: string) {
     link.click();
     link.remove();
     URL.revokeObjectURL(link.href);
-    toast.success("Kiosk ZIP downloaded");
+    toast.success(LL("Kiosk ZIP downloaded", "ZIP киоска скачан", "Kiosk ZIP yuklandi"));
   } catch (e) {
     // fallback: open a direct GET URL so the browser performs the download natively
     try {
@@ -154,9 +160,9 @@ async function downloadKioskConfig(url: string, deviceId: string) {
       });
       const downloadUrl = `/api/v1/kiosk/build?${params.toString()}`;
       window.open(downloadUrl, "_blank");
-      toast.success("Download started (browser fallback)");
+      toast.success(LL("Download started (browser fallback)", "Скачивание начато", "Yuklab olish boshlandi"));
     } catch (err) {
-      toast.error((e as Error).message || "Failed to download kiosk");
+      toast.error((e as Error).message || LL("Failed to download kiosk", "Не удалось скачать киоск", "Kioskni yuklab bo‘lmadi"));
     }
   }
 }
@@ -184,7 +190,7 @@ async function promptUploadAndZip(url: string, deviceId: string) {
     const exeFile = await promise;
     fileInput.remove();
     if (!exeFile) {
-      toast.error("No EXE selected");
+      toast.error(LL("No EXE selected", "EXE не выбран", "EXE tanlanmadi"));
       return;
     }
 
@@ -201,9 +207,9 @@ async function promptUploadAndZip(url: string, deviceId: string) {
     link.click();
     link.remove();
     URL.revokeObjectURL(link.href);
-    toast.success("Kiosk ZIP created locally");
+    toast.success(LL("Kiosk ZIP created locally", "ZIP киоска создан локально", "Kiosk ZIP lokal yaratildi"));
   } catch (err) {
-    toast.error((err as Error).message || "Failed to create local ZIP");
+    toast.error((err as Error).message || LL("Failed to create local ZIP", "Не удалось создать локальный ZIP", "Lokal ZIP yaratib bo‘lmadi"));
   }
 }
 
@@ -217,13 +223,14 @@ function downloadKioskConfigLocal(url: string, deviceId: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(link.href);
-  toast.success("Kiosk config downloaded (local)");
+  toast.success(LL("Kiosk config downloaded (local)", "Конфиг киоска скачан", "Kiosk sozlamasi yuklandi"));
 }
 
 function Devices() {
   const { user } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
   const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const qc = useQueryClient();
   const companyId = user?.company_id ?? currentCompanyId ?? "";
 
@@ -247,6 +254,7 @@ function Devices() {
   });
 
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     device_type: "TICKET_KIOSK" as (typeof DEVICE_TYPES)[number],
@@ -270,37 +278,62 @@ function Devices() {
       }),
     onSuccess: (res) => {
       setCreated(res.data);
-      toast.success("Device registered");
+      toast.success(L("Device registered", "Устройство зарегистрировано", "Qurilma ro‘yxatdan o‘tdi"));
       void qc.invalidateQueries({ queryKey: ["devices"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")),
+  });
+
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      devicesApi.update(editId!, {
+        name: form.name,
+        device_type: form.device_type,
+        serial_number: form.serial_number || undefined,
+      }),
+    onSuccess: () => {
+      toast.success(L("Device updated", "Устройство обновлено", "Qurilma yangilandi"));
+      setOpen(false);
+      resetDialog();
+      void qc.invalidateQueries({ queryKey: ["devices"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => devicesApi.delete(id),
     onSuccess: () => {
-      toast.success("Device removed");
+      toast.success(L("Device removed", "Устройство удалено", "Qurilma o‘chirildi"));
       void qc.invalidateQueries({ queryKey: ["devices"] });
     },
   });
 
   const copyLink = (url: string) => {
     void navigator.clipboard.writeText(url);
-    toast.success("Copied!");
+    toast.success(L("Copied!", "Скопировано!", "Nusxalandi!"));
   };
 
   const resetDialog = () => {
     setCreated(null);
+    setEditId(null);
     setForm({ name: "", device_type: "TICKET_KIOSK", serial_number: "" });
+  };
+
+  const startEdit = (d: import("@/lib/api").Device) => {
+    setCreated(null);
+    setEditId(d.id);
+    setForm({ name: d.name || "", device_type: d.device_type, serial_number: d.serial_number || "" });
+    setOpen(true);
   };
 
   return (
     <div>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Devices</h1>
+          <h1 className="text-2xl font-bold">{L("Devices", "Устройства", "Qurilmalar")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Connect devices by opening their URL — no IP address needed.
+            {L("Connect devices by opening their URL — no IP address needed.", "Подключайте устройства по ссылке — IP-адрес не нужен.", "Qurilmalarni URL orqali ulang — IP manzil kerak emas.")}
           </p>
         </div>
         <Dialog
@@ -313,19 +346,19 @@ function Devices() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-1.5 h-4 w-4" />
-              Register device
+              {L("Register device", "Зарегистрировать устройство", "Qurilmani ro‘yxatdan o‘tkazish")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {created ? "Device registered — copy its URL" : "Register new device"}
+                {created ? L("Device registered — copy its URL", "Устройство зарегистрировано — скопируйте URL", "Qurilma ro‘yxatdan o‘tdi — URLni nusxalang") : editId ? L("Edit device", "Редактировать устройство", "Qurilmani tahrirlash") : L("Register new device", "Зарегистрировать новое устройство", "Yangi qurilmani ro‘yxatdan o‘tkazish")}
               </DialogTitle>
             </DialogHeader>
             {created ? (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Open this URL on the device browser to connect it.
+                  {L("Open this URL on the device browser to connect it.", "Откройте этот URL в браузере устройства, чтобы подключить его.", "Ulash uchun bu URLni qurilma brauzerida oching.")}
                 </p>
                 {deviceLaunchLinks(created.device_type, created.branch_id, created.id).map(
                   ({ label, url }) => {
@@ -356,7 +389,7 @@ function Devices() {
                 {isKioskDevice(created.device_type) && (
                   <div className="rounded-lg border bg-muted/40 p-2.5">
                     <p className="mb-2 text-xs text-muted-foreground">
-                      For the Windows kiosk EXE, place this file next to the EXE and rename it to{" "}
+                      {L("For the Windows kiosk EXE, place this file next to the EXE and rename it to", "Для Windows EXE киоска положите этот файл рядом с EXE и переименуйте в", "Windows kiosk EXE uchun bu faylni EXE yoniga qo‘yib, nomini shunday o‘zgartiring:")}{" "}
                       <code>kiosk-config.json</code>.
                     </p>
                     <div className="flex gap-2">
@@ -369,7 +402,7 @@ function Devices() {
                           downloadKioskConfig(url, created.id);
                         }}
                       >
-                        <Download className="h-3.5 w-3.5" /> Download EXE config
+                        <Download className="h-3.5 w-3.5" /> {L("Download EXE config", "Скачать конфиг EXE", "EXE sozlamasini yuklash")}
                       </Button>
                       <Button
                         type="button"
@@ -388,7 +421,7 @@ function Devices() {
                 {created.auth_token && (
                   <div className="rounded-lg border bg-muted/40 p-2.5">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <KeyRound className="h-3.5 w-3.5" /> Device token
+                      <KeyRound className="h-3.5 w-3.5" /> {L("Device token", "Токен устройства", "Qurilma tokeni")}
                     </div>
                     <div className="flex items-center gap-1">
                       <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs border">
@@ -417,7 +450,7 @@ function Devices() {
               <>
                 <div className="space-y-3">
                   <div>
-                    <Label>Name *</Label>
+                    <Label>{L("Name *", "Название *", "Nomi *")}</Label>
                     <Input
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -426,7 +459,7 @@ function Devices() {
                     />
                   </div>
                   <div>
-                    <Label>Type *</Label>
+                    <Label>{L("Type *", "Тип *", "Turi *")}</Label>
                     <Select
                       value={form.device_type}
                       onValueChange={(v) =>
@@ -447,8 +480,8 @@ function Devices() {
                   </div>
                   <div>
                     <Label>
-                      Serial number{" "}
-                      <span className="text-muted-foreground text-xs">(optional)</span>
+                      {L("Serial number", "Серийный номер", "Seriya raqami")}{" "}
+                      <span className="text-muted-foreground text-xs">{L("(optional)", "(необязательно)", "(ixtiyoriy)")}</span>
                     </Label>
                     <Input
                       value={form.serial_number}
@@ -459,7 +492,7 @@ function Devices() {
                   </div>
                   {!currentBranchId && (
                     <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                      Select a branch from the header to register a device.
+                      {L("Select a branch from the header to register a device.", "Выберите филиал в шапке, чтобы зарегистрировать устройство.", "Qurilmani ro‘yxatdan o‘tkazish uchun yuqoridan filialni tanlang.")}
                     </p>
                   )}
                 </div>
@@ -468,10 +501,10 @@ function Devices() {
                     Cancel
                   </Button>
                   <Button
-                    onClick={() => createMutation.mutate()}
-                    disabled={!form.name || !currentBranchId || createMutation.isPending}
+                    onClick={() => (editId ? updateMutation.mutate() : createMutation.mutate())}
+                    disabled={!form.name || (!editId && !currentBranchId) || createMutation.isPending || updateMutation.isPending}
                   >
-                    {createMutation.isPending ? "Registering…" : "Register"}
+                    {createMutation.isPending || updateMutation.isPending ? "…" : editId ? L("Save", "Сохранить", "Saqlash") : L("Register", "Зарегистрировать", "Ro‘yxatdan o‘tkazish")}
                   </Button>
                 </DialogFooter>
               </>
@@ -489,16 +522,16 @@ function Devices() {
       ) : devices.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
           <Cpu className="mx-auto mb-3 h-8 w-8 opacity-30" />
-          <p className="font-medium">No devices registered yet</p>
+          <p className="font-medium">{L("No devices registered yet", "Устройства пока не зарегистрированы", "Hali qurilmalar ro‘yxatdan o‘tmagan")}</p>
           <p className="mt-1 text-sm">
-            Register a device and connect it by opening its URL on any browser.
+            {L("Register a device and connect it by opening its URL on any browser.", "Зарегистрируйте устройство и подключите его, открыв URL в любом браузере.", "Qurilmani ro‘yxatdan o‘tkazing va URLni istalgan brauzerda ochib ulang.")}
           </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {devices.map((d) => {
             const branchName =
-              branches.find((b) => b.id === d.branch_id)?.name_uz ?? d.branch_id?.slice(0, 8);
+              (() => { const b = branches.find((x) => x.id === d.branch_id); return b ? (loc(b as unknown as Record<string, unknown>, "name", lang) || b.name_uz) : d.branch_id?.slice(0, 8); })();
             const launchLinks = deviceLaunchLinks(d.device_type, d.branch_id, d.id);
             return (
               <Card key={d.id}>
@@ -508,16 +541,21 @@ function Devices() {
                       {STATUS_ICON[d.status] ?? STATUS_ICON.OFFLINE}
                       {d.name}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => {
-                        if (confirm(`Remove "${d.name}"?`)) deleteMutation.mutate(d.id);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(d)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => {
+                          if (confirm(L("Remove this device?", "Удалить это устройство?", "Bu qurilma o‘chirilsinmi?"))) deleteMutation.mutate(d.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -530,11 +568,11 @@ function Devices() {
                     </Badge>
                   </div>
                   {branchName && (
-                    <div className="text-xs text-muted-foreground">Branch: {branchName}</div>
+                    <div className="text-xs text-muted-foreground">{L("Branch", "Филиал", "Filial")}: {branchName}</div>
                   )}
                   {d.last_heartbeat && (
                     <div className="text-xs text-muted-foreground">
-                      Last seen: {new Date(d.last_heartbeat).toLocaleString()}
+                      {L("Last seen", "Был в сети", "Oxirgi ko‘rindi")}: {new Date(d.last_heartbeat).toLocaleString()}
                     </div>
                   )}
                   <Button
@@ -582,7 +620,7 @@ function Devices() {
                     }}
                   >
                     <QrCode className="h-3.5 w-3.5" />
-                    Open &amp; Pair
+                    {L("Open & Pair", "Открыть и привязать", "Ochish va ulash")}
                   </Button>
                   {isKioskDevice(d.device_type) && launchLinks[0] && (
                     <div className="flex gap-2">
@@ -593,7 +631,7 @@ function Devices() {
                         onClick={() => downloadKioskConfig(launchLinks[0].url, d.id)}
                       >
                         <Download className="h-3.5 w-3.5" />
-                        Download EXE config
+                        {L("Download EXE config", "Скачать конфиг EXE", "EXE sozlamasini yuklash")}
                       </Button>
                       <Button
                         size="sm"

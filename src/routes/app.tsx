@@ -225,7 +225,7 @@ function AppLayout() {
                 </SelectItem>
               ))}
               {branches.length === 0 && (
-                <div className="px-3 py-2 text-xs text-muted-foreground">No branches yet</div>
+                <div className="px-3 py-2 text-xs text-muted-foreground">{lang === "ru" ? "Филиалов пока нет" : lang === "uz" ? "Hali filiallar yo‘q" : "No branches yet"}</div>
               )}
             </SelectContent>
           </Select>

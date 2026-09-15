@@ -140,10 +140,10 @@ function Dashboard() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold">
-          {user?.first_name ? `Welcome, ${user.first_name}` : "Dashboard"}
+          {user?.first_name ? L(`Welcome, ${user.first_name}`, `Добро пожаловать, ${user.first_name}`, `Xush kelibsiz, ${user.first_name}`) : L("Dashboard", "Панель", "Boshqaruv paneli")}
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Live operations overview · refreshes every 15 s
+          {L("Live operations overview · refreshes every 15 s", "Обзор операций · обновляется каждые 15 сек", "Amaliyotlar ko‘rinishi · har 15 soniyada yangilanadi")}
         </p>
       </div>
 
@@ -151,28 +151,28 @@ function Dashboard() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            label: "Waiting",
+            label: L("Waiting", "Ожидают", "Kutmoqda"),
             value: today?.waiting ?? 0,
             icon: Clock,
             color: "text-amber-600",
             bg: "bg-amber-50 dark:bg-amber-950",
           },
           {
-            label: "Serving",
+            label: L("Serving", "Обслуживаются", "Xizmatda"),
             value: (today?.called ?? 0) + (today?.serving ?? 0),
             icon: Ticket,
             color: "text-blue-600",
             bg: "bg-blue-50 dark:bg-blue-950",
           },
           {
-            label: "Completed",
+            label: L("Completed", "Завершены", "Yakunlangan"),
             value: today?.completed ?? 0,
             icon: TrendingUp,
             color: "text-green-600",
             bg: "bg-green-50 dark:bg-green-950",
           },
           {
-            label: "No-show",
+            label: L("No-show", "Не явились", "Kelmagan"),
             value: today?.noShow ?? 0,
             icon: UserX,
             color: "text-red-500",
@@ -188,7 +188,7 @@ function Dashboard() {
               </div>
               <div>
                 <p className="text-2xl font-black">{isLoading ? "—" : value}</p>
-                <p className="text-xs text-muted-foreground">{label} today</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </CardContent>
           </Card>
@@ -200,7 +200,7 @@ function Dashboard() {
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="flex items-center gap-3 p-4">
             <Clock className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Avg wait time today:</span>
+            <span className="font-semibold">{L("Avg wait time today:", "Среднее ожидание сегодня:", "Bugungi o‘rtacha kutish vaqti:")}</span>
             <span className="text-lg font-black text-primary">
               {formatDuration(data.avg_wait_sec)}
             </span>
@@ -211,10 +211,10 @@ function Dashboard() {
       {/* Resource counts */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Branches", value: branches.length, icon: GitBranch, to: "/app/branches" },
-          { label: "Queues", value: queues.length, icon: ListOrdered, to: "/app/queues" },
-          { label: "Devices", value: devices.length, icon: Cpu, to: "/app/devices" },
-          { label: "Employees", value: employees.length, icon: Users, to: "/app/employees" },
+          { label: L("Branches", "Филиалы", "Filiallar"), value: branches.length, icon: GitBranch, to: "/app/branches" },
+          { label: L("Queues", "Очереди", "Navbatlar"), value: queues.length, icon: ListOrdered, to: "/app/queues" },
+          { label: L("Devices", "Устройства", "Qurilmalar"), value: devices.length, icon: Cpu, to: "/app/devices" },
+          { label: L("Employees", "Сотрудники", "Xodimlar"), value: employees.length, icon: Users, to: "/app/employees" },
         ].map(({ label, value, icon: Icon, to }) => (
           <Link key={label} to={to as any}>
             <Card className="transition hover:border-primary/40 cursor-pointer">
@@ -237,7 +237,7 @@ function Dashboard() {
       {hourlyData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tickets by hour today</CardTitle>
+            <CardTitle className="text-base">{L("Tickets by hour today", "Талоны по часам сегодня", "Bugungi chiptalar soatlar bo‘yicha")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
@@ -257,12 +257,12 @@ function Dashboard() {
       {(data?.operatorPerformance ?? []).length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Operator performance</CardTitle>
+            <CardTitle className="text-base">{L("Operator performance", "Эффективность операторов", "Operatorlar samaradorligi")}</CardTitle>
             <Link
               to="/app/analytics"
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              Full analytics <ArrowRight className="h-3 w-3" />
+              {L("Full analytics", "Полная аналитика", "To‘liq analitika")} <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent>
@@ -274,8 +274,8 @@ function Dashboard() {
                 >
                   <span className="text-sm font-medium">{op.operator_name}</span>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{op.completed_tickets} tickets</span>
-                    {op.avg_service_sec && <span>{formatDuration(op.avg_service_sec)} avg</span>}
+                    <span>{op.completed_tickets} {L("tickets", "талонов", "chipta")}</span>
+                    {op.avg_service_sec && <span>{formatDuration(op.avg_service_sec)} {L("avg", "сред.", "o‘rt.")}</span>}
                   </div>
                 </div>
               ))}
@@ -287,27 +287,27 @@ function Dashboard() {
       {/* Quick links for devices */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Quick access</CardTitle>
+          <CardTitle className="text-base">{L("Quick access", "Быстрый доступ", "Tez kirish")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             {[
               {
-                label: "Operator console",
+                label: L("Operator console", "Панель оператора", "Operator paneli"),
                 to: "/operator",
-                desc: "Call tickets, serve customers",
+                desc: L("Call tickets, serve customers", "Вызывать талоны и обслуживать клиентов", "Chiptalarni chaqirish va mijozlarga xizmat ko‘rsatish"),
                 color: "border-blue-200 bg-blue-50 dark:bg-blue-950",
               },
               {
-                label: "Waiting display",
+                label: L("Waiting display", "Экран ожидания", "Kutish ekrani"),
                 to: "/display",
-                desc: "Big screen queue board",
+                desc: L("Big screen queue board", "Большой экран очереди", "Katta navbat ekrani"),
                 color: "border-indigo-200 bg-indigo-50 dark:bg-indigo-950",
               },
               {
-                label: "Self-service kiosk",
+                label: L("Self-service kiosk", "Киоск самообслуживания", "O‘z-o‘ziga xizmat kioski"),
                 to: "/kiosk",
-                desc: "Customer ticket kiosk",
+                desc: L("Customer ticket kiosk", "Киоск выдачи талонов", "Mijozlar chipta kioski"),
                 color: "border-cyan-200 bg-cyan-50 dark:bg-cyan-950",
               },
             ].map(({ label, to, desc, color }) => (

@@ -4,229 +4,47 @@ import { useAuthStore } from "@/lib/auth-store";
 import { requireCompanyAdmin } from "@/lib/guards";
 import { useStore } from "@/lib/store";
 import { useLang, loc } from "@/lib/i18n";
-import { queuesApi, servicesApi } from "@/lib/api";
+import { queuesApi, servicesApi, type QueueGroup } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { Plus, Trash2, ListOrdered, Hash } from "lucide-react";
+import { Plus, Trash2, ListOrdered, Hash, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/queues")({
-  beforeLoad: requireCompanyAdmin,
-  component: Queues,
-});
+export const Route = createFileRoute("/app/queues")({ beforeLoad: requireCompanyAdmin, component: Queues });
+const emptyForm = { name_uz: "", name_ru: "", name_en: "", prefix: "A", service_id: "none", online_enabled: false, daily_limit: 200, is_active: true };
 
 function Queues() {
   const { user } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
   const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const qc = useQueryClient();
   const companyId = user?.company_id ?? currentCompanyId ?? "";
   const branchId = currentBranchId ?? "";
-
-  const { data: queues = [], isLoading } = useQuery({
-    queryKey: ["queues", companyId, branchId],
-    queryFn: () =>
-      queuesApi.list({
-        ...(companyId && { company_id: companyId }),
-        ...(branchId && { branch_id: branchId }),
-      }).then((r) => r.data),
-    enabled: !!companyId,
-  });
-
-  const { data: services = [] } = useQuery({
-    queryKey: ["services", companyId],
-    queryFn: () => servicesApi.list({ company_id: companyId }).then((r) => r.data),
-    enabled: !!companyId,
-  });
-
+  const { data: queues = [], isLoading } = useQuery({ queryKey: ["queues", companyId, branchId], queryFn: () => queuesApi.list({ ...(companyId && { company_id: companyId }), ...(branchId && { branch_id: branchId }) }).then((r) => r.data), enabled: !!companyId });
+  const { data: services = [] } = useQuery({ queryKey: ["services", companyId], queryFn: () => servicesApi.list({ company_id: companyId }).then((r) => r.data), enabled: !!companyId });
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    name_uz: "", name_ru: "", name_en: "",
-    prefix: "A", service_id: "",
-    online_enabled: false, daily_limit: 200,
-  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const reset = () => { setEditId(null); setForm(emptyForm); };
+  const startCreate = () => { reset(); setOpen(true); };
+  const startEdit = (q: QueueGroup) => { setEditId(q.id); setForm({ name_uz: q.name_uz || "", name_ru: q.name_ru || "", name_en: q.name_en || "", prefix: q.prefix || "A", service_id: q.service_id || "none", online_enabled: !!q.online_enabled, daily_limit: q.daily_limit || 200, is_active: q.is_active !== false }); setOpen(true); };
+  const saveMutation = useMutation({ mutationFn: () => {
+    const payload = { branch_id: branchId || queues.find((q) => q.id === editId)?.branch_id || "", name_uz: form.name_uz.trim(), name_ru: form.name_ru.trim() || undefined, name_en: form.name_en.trim() || undefined, prefix: form.prefix.trim() || "A", service_id: form.service_id === "none" ? null : form.service_id, online_enabled: form.online_enabled, daily_limit: Number(form.daily_limit) || undefined, is_active: form.is_active };
+    return editId ? queuesApi.update(editId, payload as Partial<QueueGroup>) : queuesApi.create(payload as Partial<QueueGroup> & { name_uz: string; prefix: string; branch_id: string });
+  }, onSuccess: () => { toast.success(editId ? L("Queue updated", "Очередь обновлена", "Navbat yangilandi") : L("Queue created", "Очередь создана", "Navbat yaratildi")); setOpen(false); reset(); void qc.invalidateQueries({ queryKey: ["queues"] }); }, onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")) });
+  const deleteMutation = useMutation({ mutationFn: (id: string) => queuesApi.delete(id), onSuccess: () => { toast.success(L("Queue deleted", "Очередь удалена", "Navbat o‘chirildi")); void qc.invalidateQueries({ queryKey: ["queues"] }); }, onError: (e) => toast.error(e instanceof Error ? e.message : L("Error", "Ошибка", "Xatolik")) });
+  const toggleMutation = useMutation({ mutationFn: (q: QueueGroup) => queuesApi.update(q.id, { is_active: !q.is_active }), onSuccess: () => void qc.invalidateQueries({ queryKey: ["queues"] }) });
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      queuesApi.create({
-        branch_id: branchId,
-        name_uz: form.name_uz,
-        name_ru: form.name_ru || undefined,
-        name_en: form.name_en || undefined,
-        prefix: form.prefix,
-        service_id: form.service_id || undefined,
-        online_enabled: form.online_enabled,
-        daily_limit: form.daily_limit,
-      }),
-    onSuccess: () => {
-      toast.success("Queue created");
-      setOpen(false);
-      setForm({ name_uz: "", name_ru: "", name_en: "", prefix: "A", service_id: "", online_enabled: false, daily_limit: 200 });
-      void qc.invalidateQueries({ queryKey: ["queues"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => queuesApi.delete(id),
-    onSuccess: () => {
-      toast.success("Queue deleted");
-      void qc.invalidateQueries({ queryKey: ["queues"] });
-    },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      queuesApi.update(id, { is_active }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["queues"] }),
-  });
-
-  if (!branchId) return (
-    <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
-      Select a branch from the header to manage queues.
-    </div>
-  );
-
-  return (
-    <div>
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Queue Designer</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Create queues for each service. Each queue issues numbered tickets.
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-1.5 h-4 w-4" />New queue</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Create queue</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label>Name (UZ) *</Label>
-                  <Input value={form.name_uz} onChange={(e) => setForm({ ...form, name_uz: e.target.value })} className="mt-1" placeholder="Umumiy navbat" />
-                </div>
-                <div>
-                  <Label>Name (RU)</Label>
-                  <Input value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} className="mt-1" placeholder="Общая очередь" />
-                </div>
-                <div>
-                  <Label>Name (EN)</Label>
-                  <Input value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} className="mt-1" placeholder="General Queue" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Prefix *</Label>
-                  <Input value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value.toUpperCase().slice(0, 5) })} className="mt-1" maxLength={5} placeholder="A" />
-                </div>
-                <div>
-                  <Label>Daily limit</Label>
-                  <Input type="number" min={1} value={form.daily_limit}
-                    onChange={(e) => setForm({ ...form, daily_limit: +e.target.value })} className="mt-1" />
-                </div>
-              </div>
-              <div>
-                <Label>Linked service (optional)</Label>
-                <Select value={form.service_id} onValueChange={(v) => setForm({ ...form, service_id: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="No service" /></SelectTrigger>
-                  <SelectContent>
-                    {services.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {loc(s as unknown as Record<string, unknown>, "name", lang) || s.name_uz}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch checked={form.online_enabled} onCheckedChange={(v) => setForm({ ...form, online_enabled: v })} />
-                <Label>Online queue enabled</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => createMutation.mutate()} disabled={!form.name_uz || !form.prefix || createMutation.isPending}>
-                {createMutation.isPending ? "Creating…" : "Create"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-36 animate-pulse rounded-xl bg-muted" />)}
-        </div>
-      ) : queues.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
-          <ListOrdered className="mx-auto mb-3 h-8 w-8 opacity-30" />
-          <p className="font-medium">No queues yet</p>
-          <p className="mt-1 text-sm">Create queues to start issuing tickets from the kiosk.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {queues.map((q) => (
-            <Card key={q.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center justify-between text-base">
-                  <span className="flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">
-                      {q.prefix}
-                    </span>
-                    <span className="truncate">
-                      {loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz}
-                    </span>
-                  </span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0"
-                    onClick={() => { if (confirm("Delete this queue?")) deleteMutation.mutate(q.id); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {q.service && (
-                  <p className="text-muted-foreground">
-                    Service: {loc(q.service as unknown as Record<string, unknown>, "name", lang) || q.service.name_uz}
-                  </p>
-                )}
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-xs ${q.is_active ? "border-green-300 text-green-700" : "border-slate-300 text-slate-400"}`}>
-                    {q.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                  {q.online_enabled && <Badge variant="secondary" className="text-xs">Online</Badge>}
-                  {q.daily_limit && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Hash className="h-3 w-3" />max {q.daily_limit}/day
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Switch
-                    checked={q.is_active}
-                    onCheckedChange={(v) => toggleMutation.mutate({ id: q.id, is_active: v })}
-                  />
-                  <Label className="text-xs text-muted-foreground">Active</Label>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <div>
+    <div className="mb-6 flex items-end justify-between"><div><h1 className="text-2xl font-bold">{L("Queue Designer", "Конструктор очередей", "Navbat konstruktori")}</h1><p className="mt-0.5 text-sm text-muted-foreground">{L("Create and edit queues for each service.", "Создавайте и редактируйте очереди для услуг.", "Har bir xizmat uchun navbatlarni yarating va tahrirlang.")}</p></div><Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}><DialogTrigger asChild><Button onClick={startCreate}><Plus className="mr-1.5 h-4 w-4" />{L("New queue", "Новая очередь", "Yangi navbat")}</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{editId ? L("Edit queue", "Редактировать очередь", "Navbatni tahrirlash") : L("Create queue", "Создать очередь", "Navbat yaratish")}</DialogTitle></DialogHeader><div className="space-y-3"><div className="grid grid-cols-3 gap-2"><div><Label>{L("Name (UZ) *", "Название (UZ) *", "Nomi (UZ) *")}</Label><Input value={form.name_uz} onChange={(e) => setForm({ ...form, name_uz: e.target.value })} className="mt-1" /></div><div><Label>{L("Name (RU)", "Название (RU)", "Nomi (RU)")}</Label><Input value={form.name_ru} onChange={(e) => setForm({ ...form, name_ru: e.target.value })} className="mt-1" /></div><div><Label>{L("Name (EN)", "Название (EN)", "Nomi (EN)")}</Label><Input value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} className="mt-1" /></div></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>{L("Prefix", "Префикс", "Prefiks")}</Label><Input value={form.prefix} maxLength={6} onChange={(e) => setForm({ ...form, prefix: e.target.value.toUpperCase() })} className="mt-1" /></div><div><Label>{L("Daily limit", "Дневной лимит", "Kunlik limit")}</Label><Input type="number" min={1} value={form.daily_limit} onChange={(e) => setForm({ ...form, daily_limit: +e.target.value })} className="mt-1" /></div></div><div><Label>{L("Linked service", "Связанная услуга", "Bog‘langan xizmat")}</Label><Select value={form.service_id} onValueChange={(service_id) => setForm({ ...form, service_id })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">{L("No service", "Без услуги", "Xizmatsiz")}</SelectItem>{services.map((s) => <SelectItem key={s.id} value={s.id}>{loc(s as unknown as Record<string, unknown>, "name", lang) || s.name_uz}</SelectItem>)}</SelectContent></Select></div><div className="flex items-center justify-between rounded-lg border p-3"><Label>{L("Online queue", "Онлайн очередь", "Onlayn navbat")}</Label><Switch checked={form.online_enabled} onCheckedChange={(online_enabled) => setForm({ ...form, online_enabled })} /></div><div className="flex items-center justify-between rounded-lg border p-3"><Label>{L("Active", "Активна", "Faol")}</Label><Switch checked={form.is_active} onCheckedChange={(is_active) => setForm({ ...form, is_active })} /></div></div><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>{L("Cancel", "Отмена", "Bekor qilish")}</Button><Button onClick={() => saveMutation.mutate()} disabled={!form.name_uz.trim() || (!branchId && !editId) || saveMutation.isPending}>{saveMutation.isPending ? "…" : editId ? L("Save", "Сохранить", "Saqlash") : L("Create", "Создать", "Yaratish")}</Button></DialogFooter></DialogContent></Dialog></div>
+    {isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-muted" />)}</div> : queues.length === 0 ? <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground"><ListOrdered className="mx-auto mb-3 h-8 w-8 opacity-30" /><p className="font-medium">{L("No queues yet", "Очередей пока нет", "Hali navbatlar yo‘q")}</p><p className="mt-1 text-sm">{branchId ? L("Create a queue for this branch.", "Создайте очередь для этого филиала.", "Bu filial uchun navbat yarating.") : L("Select a branch first.", "Сначала выберите филиал.", "Avval filialni tanlang.")}</p></div> : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{queues.map((q) => <Card key={q.id}><CardHeader><CardTitle className="flex items-start justify-between gap-2"><span className="flex items-center gap-2 truncate"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">{q.prefix || <Hash className="h-4 w-4" />}</span><span className="truncate">{loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz}</span></span><span className="flex shrink-0 gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(q)}><Pencil className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(L("Delete this queue?", "Удалить эту очередь?", "Bu navbat o‘chirilsinmi?"))) deleteMutation.mutate(q.id); }}><Trash2 className="h-3.5 w-3.5" /></Button></span></CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div className="text-muted-foreground">{q.service ? `${L("Service", "Услуга", "Xizmat")}: ${loc(q.service as unknown as Record<string, unknown>, "name", lang) || q.service.name_uz}` : L("No service linked", "Услуга не связана", "Xizmat bog‘lanmagan")}</div><div className="flex flex-wrap gap-2"><Badge variant="outline" className={q.is_active ? "border-green-500 text-green-600" : "border-slate-400 text-muted-foreground"}>{q.is_active ? L("Active", "Активна", "Faol") : L("Inactive", "Неактивна", "Nofaol")}</Badge><Badge variant="secondary"># {L("max", "макс", "maks")} {q.daily_limit || "∞"}/{L("day", "день", "kun")}</Badge>{q.online_enabled && <Badge>{L("Online", "Онлайн", "Onlayn")}</Badge>}</div><div className="flex items-center justify-between rounded-lg border p-2"><span>{L("Active", "Активна", "Faol")}</span><Switch checked={q.is_active} onCheckedChange={() => toggleMutation.mutate(q)} /></div></CardContent></Card>)}</div>}
+  </div>;
 }
-

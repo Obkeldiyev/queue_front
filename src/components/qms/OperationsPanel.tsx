@@ -1,21 +1,28 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, employeesApi } from "@/lib/api";
+import { useAuthStore } from "@/lib/auth-store";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { attachmentLabel, isImageAttachment, readChatAttachment, type ChatAttachment } from "@/lib/chat-attachments";
 export function OperationsPanel({ admin = false }: { admin?: boolean }) {
+  const { user, setUser } = useAuthStore();
   const { lang } = useLang();
   const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
   const [message, setMessage] = useState("");
+  const [chatAttachment, setChatAttachment] = useState<ChatAttachment | null>(null);
+  const [chatFileError, setChatFileError] = useState("");
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
   const [channel, setChannel] = useState("telegram");
   const [evidence, setEvidence] = useState<{ name: string; data: string } | null>(null);
   const [password, setPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
+  const [avatarError, setAvatarError] = useState("");
   const [page, setPage] = useState(1);
   const { data: list } = useQuery({
     queryKey: ["conversations", page],
@@ -28,6 +35,19 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
     queryFn: () => api.get<any>(`/operations/conversations/${selected}`).then((r) => r.data),
     refetchInterval: 2000,
   });
+
+  const avatarMutation = useMutation({
+    mutationFn: (avatar_url: string | null) => {
+      if (!user?.id) throw new Error("No operator profile loaded");
+      return employeesApi.update(user.id, { avatar_url });
+    },
+    onSuccess: (res) => {
+      setUser(user ? { ...user, avatar_url: res.data.avatar_url ?? null } : user);
+      toast.success(L("Profile photo updated", "Фото профиля обновлено", "Profil rasmi yangilandi"));
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : L("Failed to update photo", "Не удалось обновить фото", "Rasmni yangilab bo‘lmadi")),
+  });
+
   const action = useMutation({
     mutationFn: ({ url, body }: { url: string; body?: unknown }) => api.post<any>(url, body),
     onSuccess: (r) => {
@@ -37,6 +57,9 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
       });
       if (r.data?.id) setSelected(r.data.id);
       setMessage("");
+      setChatAttachment(null);
+      setChatFileError("");
+      if (chatFileInputRef.current) chatFileInputRef.current.value = "";
     },
     onError: (e) => toast.error(e.message),
   });
@@ -102,7 +125,7 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                     .then(() =>
                       toast.success(L("Link copied", "Ссылка скопирована", "Havola nusxalandi")),
                     )
-                    .catch(() => toast.error("Clipboard unavailable"))
+                    .catch(() => toast.error(L("Clipboard unavailable", "Буфер обмена недоступен", "Bufer mavjud emas")))
                 }
               >
                 {L("Copy invitation link", "Копировать приглашение", "Taklif havolasini nusxalash")}
@@ -117,7 +140,25 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                   <small>
                     {m.sender} · {new Date(m.created_at).toLocaleTimeString()}
                   </small>
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                  {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
+                  {m.attachment && (
+                    <div className="mt-2 rounded-lg border bg-background/80 p-2">
+                      {isImageAttachment(m.attachment) && (
+                        <img
+                          className="mb-2 max-h-48 rounded-md object-contain"
+                          src={m.attachment.data}
+                          alt={m.attachment.name || "attachment"}
+                        />
+                      )}
+                      <a
+                        className="font-medium text-primary underline"
+                        href={m.attachment.data}
+                        download={m.attachment.name || "attachment"}
+                      >
+                        📎 {attachmentLabel(m.attachment)}
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -134,12 +175,12 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
             {!admin && chat.status === "ACTIVE" && (
               <>
                 <form
-                  className="flex gap-2"
+                  className="grid gap-2 sm:grid-cols-[1fr_auto]"
                   onSubmit={(e) => {
                     e.preventDefault();
                     action.mutate({
                       url: `/operations/conversations/${selected}/messages`,
-                      body: { text: message },
+                      body: { text: message, attachment: chatAttachment },
                     });
                   }}
                 >
@@ -149,9 +190,46 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                   />
-                  <Button disabled={!message.trim() || action.isPending}>
+                  <Button disabled={(!message.trim() && !chatAttachment) || action.isPending}>
                     {L("Send", "Отправить", "Yuborish")}
                   </Button>
+                  <div className="sm:col-span-2">
+                    <input
+                      ref={chatFileInputRef}
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) {
+                          setChatAttachment(null);
+                          return;
+                        }
+                        readChatAttachment(file)
+                          .then((next) => {
+                            setChatAttachment(next);
+                            setChatFileError("");
+                          })
+                          .catch((err) => {
+                            setChatAttachment(null);
+                            setChatFileError(err instanceof Error ? err.message : L("Invalid file", "Недопустимый файл", "Noto‘g‘ri fayl"));
+                            e.currentTarget.value = "";
+                          });
+                      }}
+                    />
+                    {chatAttachment && (
+                      <button
+                        type="button"
+                        className="mt-1 block text-left text-sm text-primary underline"
+                        onClick={() => {
+                          setChatAttachment(null);
+                          if (chatFileInputRef.current) chatFileInputRef.current.value = "";
+                        }}
+                      >
+                        {L("Remove", "Удалить", "Olib tashlash")} {attachmentLabel(chatAttachment)}
+                      </button>
+                    )}
+                    {chatFileError && <p className="text-sm text-destructive">{chatFileError}</p>}
+                  </div>
                 </form>
                 <Button
                   disabled={action.isPending}
@@ -189,8 +267,8 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                 onChange={(e) => setChannel(e.target.value)}
               >
                 <option value="telegram">Telegram</option>
-                <option value="phone">Phone</option>
-                <option value="other">Other</option>
+                <option value="phone">{L("Phone", "Телефон", "Telefon")}</option>
+                <option value="other">{L("Other", "Другое", "Boshqa")}</option>
               </select>
               <input
                 type="file"
@@ -199,7 +277,7 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                   const f = e.target.files?.[0];
                   if (!f) return;
                   if (f.size > 2 * 1024 * 1024) {
-                    toast.error("Maximum 2 MB");
+                    toast.error(L("Maximum 2 MB", "Максимум 2 МБ", "Maksimum 2 MB"));
                     return;
                   }
                   const r = new FileReader();
@@ -243,6 +321,37 @@ export function OperationsPanel({ admin = false }: { admin?: boolean }) {
                 "Profilim · Parolni o‘zgartirish",
               )}
             </summary>
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-muted/40 p-3">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary">
+                {user?.avatar_url ? <img src={user.avatar_url} alt="" className="h-full w-full object-cover" /> : `${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="text-xs"
+                  disabled={avatarMutation.isPending}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 1024 * 1024) {
+                      setAvatarError(L("Maximum image size is 1 MB", "Максимум 1 МБ", "Maksimum 1 MB"));
+                      e.currentTarget.value = "";
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setAvatarError("");
+                      avatarMutation.mutate(String(reader.result));
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {user?.avatar_url && <button type="button" className="block text-xs text-destructive underline" onClick={() => avatarMutation.mutate(null)}>{L("Remove photo", "Удалить фото", "Rasmni olib tashlash")}</button>}
+                {avatarError && <p className="text-xs text-destructive">{avatarError}</p>}
+              </div>
+            </div>
             <form
               className="mt-3 flex flex-wrap gap-3"
               onSubmit={(e) => {

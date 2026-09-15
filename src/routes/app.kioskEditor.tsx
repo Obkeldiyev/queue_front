@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { requireCompanyAdmin } from "@/lib/guards";
 import { useAuthStore } from "@/lib/auth-store";
 import { devicesApi, menusApi, api } from "@/lib/api";
-import { CanvasDesigner, blankPage, type CanvasPage } from "@/components/qms/CanvasDesigner";
+import { CanvasDesigner, type CanvasPage } from "@/components/qms/CanvasDesigner";
 import { Button } from "@/components/ui/button";
 import { useLang, loc } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -21,6 +21,49 @@ type MenuLike = {
   name_en?: string;
   children?: MenuLike[];
 };
+
+
+function starterPage(pageName: string, deviceType?: string): CanvasPage {
+  const isDisplay = deviceType?.includes("DISPLAY") || pageName === "billboard";
+  if (isDisplay) {
+    return {
+      width: 1920,
+      height: 1080,
+      background: "#eef5ff",
+      blocks: [
+        { id: "display-header", type: "text", x: 60, y: 45, width: 1120, height: 90, content: "{{branch_name}}", color: "#111827", background: "transparent", fontSize: 42 },
+        { id: "display-time", type: "text", x: 1510, y: 38, width: 310, height: 95, content: "{{time}}", color: "#111827", background: "transparent", fontSize: 58 },
+        { id: "display-called-title", type: "text", x: 80, y: 205, width: 760, height: 75, content: "Now serving", color: "#0369a1", background: "transparent", fontSize: 46 },
+        { id: "display-called", type: "queue", x: 80, y: 310, width: 760, height: 620, content: "queue", color: "#ffffff", background: "#dff3ff", fontSize: 40 },
+        { id: "display-waiting-title", type: "text", x: 1025, y: 205, width: 760, height: 75, content: "Waiting", color: "#38bdf8", background: "transparent", fontSize: 46 },
+        { id: "display-waiting", type: "queue", x: 1025, y: 310, width: 820, height: 620, content: "queue", color: "#ffffff", background: "#1f2937", fontSize: 40 },
+      ],
+    };
+  }
+  if (pageName === "ticket") {
+    return {
+      width: 420,
+      height: 620,
+      background: "#ffffff",
+      blocks: [
+        { id: "ticket-title", type: "text", x: 30, y: 25, width: 360, height: 60, content: "{{branch_name}}", color: "#111827", background: "transparent", fontSize: 24 },
+        { id: "ticket-number", type: "text", x: 40, y: 150, width: 340, height: 110, content: "{{ticket_number}}", color: "#000000", background: "transparent", fontSize: 58 },
+        { id: "ticket-time", type: "text", x: 70, y: 285, width: 280, height: 50, content: "{{time}}", color: "#475569", background: "transparent", fontSize: 18 },
+        { id: "ticket-note", type: "text", x: 40, y: 430, width: 340, height: 60, content: "Please wait for your number", color: "#111827", background: "transparent", fontSize: 20 },
+      ],
+    };
+  }
+  return {
+    width: 1280,
+    height: 800,
+    background: "#f3f6fc",
+    blocks: [
+      { id: "kiosk-title", type: "text", x: 80, y: 55, width: 840, height: 80, content: "{{branch_name}}", color: "#0f172a", background: "transparent", fontSize: 42 },
+      { id: "kiosk-help", type: "text", x: 80, y: 155, width: 720, height: 55, content: "Choose a service", color: "#475569", background: "transparent", fontSize: 28 },
+      { id: "kiosk-services", type: "services", x: 80, y: 245, width: 1120, height: 470, content: "services", color: "#0f172a", background: "#ffffff", fontSize: 28 },
+    ],
+  };
+}
 
 function flattenMenus(items: MenuLike[], depth = 0): Array<MenuLike & { depth: number }> {
   return items.flatMap((item) => [
@@ -101,7 +144,8 @@ function Editor() {
     },
     onError: (e) => toast.error(e.message),
   });
-  const page = pages[pageName] || blankPage();
+  const hasSavedPage = Boolean(pages[pageName]);
+  const page = pages[pageName] || starterPage(pageName, device?.device_type);
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -229,6 +273,14 @@ function Editor() {
       </div>
       {device && (
         <>
+          {!hasSavedPage && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-card p-3 text-sm text-muted-foreground">
+              <span>{label("This screen is using an editable starter layout. Save it to keep it on this device.", "Этот экран использует редактируемый стартовый макет. Сохраните его для устройства.", "Bu ekran tahrirlanadigan boshlang‘ich maketdan foydalanmoqda. Uni qurilmaga saqlang.")}</span>
+              <Button variant="outline" size="sm" onClick={() => { setPages({ ...pages, [pageName]: page }); setDirty(true); }}>
+                {label("Use this layout", "Использовать макет", "Bu maketni ishlatish")}
+              </Button>
+            </div>
+          )}
           <CanvasDesigner
             key={`${id}:${pageName}`}
             value={page}
