@@ -14,7 +14,10 @@ export function estimateWaitTime(position: number, serviceEstimatedTime?: number
   return `${minutes} min`;
 }
 
-export function estimateWaitMinutes(position: number, serviceEstimatedTime?: number | null): number | null {
+export function estimateWaitMinutes(
+  position: number,
+  serviceEstimatedTime?: number | null,
+): number | null {
   if (!serviceEstimatedTime || serviceEstimatedTime <= 0) return null;
   return Math.max(1, (position + 1) * serviceEstimatedTime);
 }
@@ -22,7 +25,7 @@ export function estimateWaitMinutes(position: number, serviceEstimatedTime?: num
 export function buildDeviceLink(
   mode: "operator" | "display" | "kiosk",
   branchId: string,
-  deviceId?: string
+  deviceId?: string,
 ): string {
   const base = typeof window !== "undefined" ? window.location.origin : "";
   const params = new URLSearchParams({ branch: branchId });
@@ -31,6 +34,11 @@ export function buildDeviceLink(
 }
 
 export interface PrintTicketOptions {
+  template?: {
+    width_mm: number;
+    height_mm: number;
+    layout: import("@/components/qms/CanvasDesigner").CanvasPage;
+  };
   ticketNumber: string;
   queueName: string;
   counterName?: string;
@@ -57,17 +65,27 @@ declare global {
 // These are sent directly via Web Serial API (no print dialog at all).
 // ─────────────────────────────────────────────────────────────────────────────
 function buildEscPosReceipt(opts: PrintTicketOptions): Uint8Array {
-  const { ticketNumber, queueName, counterName, position, estimatedWaitMins, branchName, lang = "en" } = opts;
+  const {
+    ticketNumber,
+    queueName,
+    counterName,
+    position,
+    estimatedWaitMins,
+    branchName,
+    lang = "en",
+  } = opts;
 
-  const ESC = 0x1B;
-  const GS  = 0x1D;
-  const LF  = 0x0A;
+  const ESC = 0x1b;
+  const GS = 0x1d;
+  const LF = 0x0a;
 
   const enc = new TextEncoder();
   const bytes: number[] = [];
 
-  const push = (s: string) => { enc.encode(s).forEach(b => bytes.push(b)); };
-  const cmd  = (...b: number[]) => b.forEach(b => bytes.push(b));
+  const push = (s: string) => {
+    enc.encode(s).forEach((b) => bytes.push(b));
+  };
+  const cmd = (...b: number[]) => b.forEach((b) => bytes.push(b));
 
   // Initialize
   cmd(ESC, 0x40);
@@ -79,7 +97,9 @@ function buildEscPosReceipt(opts: PrintTicketOptions): Uint8Array {
   // Normal size
   cmd(GS, 0x21, 0x00);
 
-  if (branchName) { push(branchName + "\n"); }
+  if (branchName) {
+    push(branchName + "\n");
+  }
 
   const windowLabel = lang === "uz" ? "Kabinet" : lang === "ru" ? "Кабинет" : "Window";
   const serviceLabel = lang === "uz" ? "Xizmat" : lang === "ru" ? "Услуга" : "Service";
@@ -122,7 +142,7 @@ async function printViaSerial(opts: PrintTicketOptions): Promise<boolean> {
   try {
     if (!("serial" in navigator)) return false;
 
-    const ports = await (navigator as any).serial.getPorts() as unknown[];
+    const ports = (await (navigator as any).serial.getPorts()) as unknown[];
     let port: unknown = _serialPort;
 
     if (!port && ports.length > 0) port = ports[0];
@@ -155,7 +175,11 @@ export async function pairThermalPrinter(): Promise<boolean> {
     const port = await (navigator as any).serial.requestPort();
     await (port as any).open({ baudRate: 9600 });
     _serialPort = port;
-    try { await (port as any).close(); } catch { /* ignore */ }
+    try {
+      await (port as any).close();
+    } catch {
+      /* ignore */
+    }
     return true;
   } catch {
     return false;
@@ -165,7 +189,7 @@ export async function pairThermalPrinter(): Promise<boolean> {
 export async function hasDirectPrinterAccess(): Promise<boolean> {
   try {
     const usbDevices = (navigator as any).usb
-      ? await (navigator as any).usb.getDevices() as unknown[]
+      ? ((await (navigator as any).usb.getDevices()) as unknown[])
       : [];
     return usbDevices.length > 0;
   } catch {
@@ -173,14 +197,17 @@ export async function hasDirectPrinterAccess(): Promise<boolean> {
   }
 }
 
-async function findUsbOutEndpoint(device: any): Promise<{ interfaceNumber: number; endpointNumber: number } | null> {
+async function findUsbOutEndpoint(
+  device: any,
+): Promise<{ interfaceNumber: number; endpointNumber: number } | null> {
   const configuration = device.configuration ?? device.configurations?.[0];
   if (!configuration) return null;
 
   for (const iface of configuration.interfaces ?? []) {
     for (const alternate of iface.alternates ?? []) {
-      const endpoint = alternate.endpoints?.find((e: any) => e.direction === "out" && e.type === "bulk")
-        ?? alternate.endpoints?.find((e: any) => e.direction === "out");
+      const endpoint =
+        alternate.endpoints?.find((e: any) => e.direction === "out" && e.type === "bulk") ??
+        alternate.endpoints?.find((e: any) => e.direction === "out");
       if (!endpoint) continue;
       if (device.configuration?.configurationValue !== configuration.configurationValue) {
         await device.selectConfiguration(configuration.configurationValue);
@@ -210,14 +237,26 @@ async function printViaUsb(opts: PrintTicketOptions): Promise<boolean> {
     await device.open();
     const endpoint = await findUsbOutEndpoint(device);
     if (!endpoint) {
-      try { await device.close(); } catch { /* ignore */ }
+      try {
+        await device.close();
+      } catch {
+        /* ignore */
+      }
       return false;
     }
 
     const bytes = buildEscPosReceipt(opts);
     await device.transferOut(endpoint.endpointNumber, bytes);
-    try { await device.releaseInterface(endpoint.interfaceNumber); } catch { /* ignore */ }
-    try { await device.close(); } catch { /* ignore */ }
+    try {
+      await device.releaseInterface(endpoint.interfaceNumber);
+    } catch {
+      /* ignore */
+    }
+    try {
+      await device.close();
+    } catch {
+      /* ignore */
+    }
     return true;
   } catch {
     return false;
@@ -247,6 +286,28 @@ export async function pairBrowserPrinter(): Promise<boolean> {
 // HTML receipt builder (for iframe fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildReceiptHtml(opts: PrintTicketOptions): string {
+  if (opts.template?.layout?.blocks?.length) {
+    const t = opts.template;
+    const esc = (s: unknown) =>
+      String(s ?? "").replace(
+        /[&<>"']/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+      );
+    const vars: Record<string, string> = {
+      ticket_number: opts.ticketNumber,
+      queue_name: opts.queueName,
+      branch_name: opts.branchName || "",
+      time: new Date().toLocaleString(),
+      position: String(opts.position || ""),
+    };
+    const blocks = t.layout.blocks
+      .map(
+        (b) =>
+          `<div style="position:absolute;left:${(Number(b.x) / t.layout.width) * 100}%;top:${(Number(b.y) / t.layout.height) * 100}%;width:${(Number(b.width) / t.layout.width) * 100}%;height:${(Number(b.height) / t.layout.height) * 100}%;font-size:${(Number(b.fontSize) / t.layout.width) * t.width_mm}mm;color:${/^#[a-f0-9]{6}$/i.test(b.color) ? b.color : "#000000"};white-space:pre-wrap;overflow:hidden">${b.type === "image" && /^(data:image\/(png|jpeg|webp);base64,|https:\/\/)/.test(b.content) ? `<img src="${esc(b.content)}" style="width:100%;height:100%;object-fit:contain">` : esc(b.content.replace(/\{\{(\w+)\}\}/g, (m, k) => vars[k] ?? m))}</div>`,
+      )
+      .join("");
+    return `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:${Number(t.width_mm)}mm ${Number(t.height_mm)}mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial}main{position:relative;width:${Number(t.width_mm)}mm;height:${Number(t.height_mm)}mm}</style></head><body><main>${blocks}</main></body></html>`;
+  }
   const { ticketNumber, queueName: qName, position, branchName, logoUrl, lang = "uz" } = opts;
 
   const L = {
@@ -256,14 +317,17 @@ function buildReceiptHtml(opts: PrintTicketOptions): string {
   }[lang] ?? { serviceLabel: "Xizmat turi:", before: "Sizdan oldingi navbat:", ta: "ta" };
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const dateStr = now.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const beforeCount = position != null ? Math.max(0, position - 1) : null;
 
   // Always use the static logo.png from /public — fall back to company API logo if provided
-  const resolvedLogo = logoUrl && logoUrl.startsWith("http")
-    ? logoUrl
-    : `https://xnavbat.polito.uz/logo.png`;
+  const resolvedLogo =
+    logoUrl && logoUrl.startsWith("http") ? logoUrl : `https://xnavbat.polito.uz/logo.png`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
@@ -305,12 +369,52 @@ function centerLine(value: string, width = 32): string {
 }
 
 function buildReceiptText(opts: PrintTicketOptions): string {
-  const { ticketNumber, queueName: qName, counterName: cName, position, estimatedWaitMins, branchName, lang = "en" } = opts;
+  const {
+    ticketNumber,
+    queueName: qName,
+    counterName: cName,
+    position,
+    estimatedWaitMins,
+    branchName,
+    lang = "en",
+  } = opts;
   const L = {
-    uz: { title: "Navbat chiptasi", service: "Xizmat", window: "Kabinet", pos: "O'rningiz", wait: "Kutish", min: "daq", printed: "Chop etildi" },
-    ru: { title: "Талон очереди", service: "Услуга", window: "Кабинет", pos: "Место", wait: "Ожидание", min: "мин", printed: "Напечатано" },
-    en: { title: "Queue Ticket", service: "Service", window: "Window", pos: "Position", wait: "Wait", min: "min", printed: "Printed" },
-  }[lang] ?? { title: "Queue Ticket", service: "Service", window: "Window", pos: "Position", wait: "Wait", min: "min", printed: "Printed" };
+    uz: {
+      title: "Navbat chiptasi",
+      service: "Xizmat",
+      window: "Kabinet",
+      pos: "O'rningiz",
+      wait: "Kutish",
+      min: "daq",
+      printed: "Chop etildi",
+    },
+    ru: {
+      title: "Талон очереди",
+      service: "Услуга",
+      window: "Кабинет",
+      pos: "Место",
+      wait: "Ожидание",
+      min: "мин",
+      printed: "Напечатано",
+    },
+    en: {
+      title: "Queue Ticket",
+      service: "Service",
+      window: "Window",
+      pos: "Position",
+      wait: "Wait",
+      min: "min",
+      printed: "Printed",
+    },
+  }[lang] ?? {
+    title: "Queue Ticket",
+    service: "Service",
+    window: "Window",
+    pos: "Position",
+    wait: "Wait",
+    min: "min",
+    printed: "Printed",
+  };
 
   const lines = [
     branchName ? centerLine(branchName.toUpperCase()) : "",
@@ -339,10 +443,11 @@ function printViaIframe(opts: PrintTicketOptions): void {
 
   const html = buildReceiptHtml(opts);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
 
   const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0;pointer-events:none;";
+  iframe.style.cssText =
+    "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0;pointer-events:none;";
   iframe.src = url;
   document.body.appendChild(iframe);
 
@@ -355,14 +460,20 @@ function printViaIframe(opts: PrintTicketOptions): void {
     try {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setTimeout(cleanup, 8000);
   };
 
   // Safety fallback
   setTimeout(() => {
     if (iframe.parentNode) {
-      try { iframe.contentWindow?.print(); } catch { /* ignore */ }
+      try {
+        iframe.contentWindow?.print();
+      } catch {
+        /* ignore */
+      }
       setTimeout(cleanup, 5000);
     }
   }, 1500);
@@ -383,19 +494,20 @@ export function printTicketReceipt(
   ticketNumber: string,
   queueName: string,
   counterName?: string,
-  options?: Partial<Omit<PrintTicketOptions, "ticketNumber" | "queueName" | "counterName">>
+  options?: Partial<Omit<PrintTicketOptions, "ticketNumber" | "queueName" | "counterName">>,
 ): void;
 export function printTicketReceipt(
   ticketNumberOrOpts: string | PrintTicketOptions,
   queueName?: string,
   counterName?: string,
-  options?: Partial<Omit<PrintTicketOptions, "ticketNumber" | "queueName" | "counterName">>
+  options?: Partial<Omit<PrintTicketOptions, "ticketNumber" | "queueName" | "counterName">>,
 ): void {
   if (typeof window === "undefined") return;
 
-  const opts: PrintTicketOptions = typeof ticketNumberOrOpts === "string"
-    ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
-    : ticketNumberOrOpts;
+  const opts: PrintTicketOptions =
+    typeof ticketNumberOrOpts === "string"
+      ? { ticketNumber: ticketNumberOrOpts, queueName: queueName ?? "", counterName, ...options }
+      : ticketNumberOrOpts;
 
   (async () => {
     if (window.qubitKiosk?.printReceipt) {
@@ -412,7 +524,8 @@ export function printTicketReceipt(
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 500);
-        const pairingToken = typeof window !== "undefined" ? localStorage.getItem("qms_pairing_token") : null;
+        const pairingToken =
+          typeof window !== "undefined" ? localStorage.getItem("qms_pairing_token") : null;
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (pairingToken) headers.Authorization = `Bearer ${pairingToken}`;
         const resp = await fetch("http://localhost:4020/print", {
@@ -428,13 +541,13 @@ export function printTicketReceipt(
       }
     }
 
-    const usedUsb = await printViaUsb(opts).catch(() => false);
+    const usedUsb = !opts.template && (await printViaUsb(opts).catch(() => false));
     if (usedUsb) return;
 
     const allowSerialFallback =
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("serialPrinter") === "1";
-    if (allowSerialFallback) {
+    if (allowSerialFallback && !opts.template) {
       const used = await printViaSerial(opts).catch(() => false);
       if (used) return;
     }

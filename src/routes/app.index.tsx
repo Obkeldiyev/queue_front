@@ -1,3 +1,4 @@
+import { useLang } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth-store";
@@ -5,11 +6,16 @@ import { useStore } from "@/lib/store";
 import { analyticsApi, branchesApi, queuesApi, devicesApi, employeesApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-} from "recharts";
-import {
-  Ticket, Clock, UserX, TrendingUp, GitBranch, ListOrdered, Cpu, Users,
+  Ticket,
+  Clock,
+  UserX,
+  TrendingUp,
+  GitBranch,
+  ListOrdered,
+  Cpu,
+  Users,
   ArrowRight,
 } from "lucide-react";
 import { formatDuration } from "@/lib/queue-helpers";
@@ -19,6 +25,8 @@ export const Route = createFileRoute("/app/")({
 });
 
 function Dashboard() {
+  const { lang } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
   const { user, isLoading: authLoading } = useAuthStore();
   const { currentCompanyId, currentBranchId } = useStore();
   const companyId = user?.company_id ?? currentCompanyId ?? "";
@@ -43,7 +51,10 @@ function Dashboard() {
 
   const { data: queues = [] } = useQuery({
     queryKey: ["queues", companyId, currentBranchId],
-    queryFn: () => queuesApi.list({ company_id: companyId, ...(currentBranchId && { branch_id: currentBranchId }) }).then((r) => r.data),
+    queryFn: () =>
+      queuesApi
+        .list({ company_id: companyId, ...(currentBranchId && { branch_id: currentBranchId }) })
+        .then((r) => r.data),
     enabled: !!companyId,
     staleTime: 30_000,
   });
@@ -77,6 +88,55 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border bg-gradient-to-br from-blue-50 to-white p-5 dark:from-slate-900 dark:to-slate-950">
+        <h2 className="text-lg font-bold">
+          {L("Set up your branch", "Настройте филиал", "Filialni sozlang")}
+        </h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {L(
+            "Follow these steps in order. Each step builds on the previous one.",
+            "Выполните шаги по порядку. Каждый следующий использует предыдущий.",
+            "Bosqichlarni ketma-ket bajaring.",
+          )}
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            {
+              to: "/app/branches",
+              title: L("1. Branch", "1. Филиал", "1. Filial"),
+              done: branches.length > 0,
+            },
+            {
+              to: "/app/services",
+              title: L("2. Services & queues", "2. Услуги и очереди", "2. Xizmat va navbat"),
+              done: queues.length > 0,
+            },
+            {
+              to: "/app/counters",
+              title: L("3. Counters & staff", "3. Окна и сотрудники", "3. Oynalar va xodimlar"),
+              done: employees.length > 0,
+            },
+            {
+              to: "/app/devices",
+              title: L("4. Devices & design", "4. Устройства и дизайн", "4. Qurilma va dizayn"),
+              done: devices.length > 0,
+            },
+            {
+              to: "/app/audit",
+              title: L("5. Rules & KPI", "5. Правила и KPI", "5. Qoidalar va KPI"),
+              done: false,
+            },
+          ].map((step) => (
+            <Link
+              key={step.to}
+              to={step.to as any}
+              className="rounded-xl border bg-card p-3 text-sm font-medium transition hover:border-primary"
+            >
+              {step.done ? "✓" : "→"} {step.title}
+            </Link>
+          ))}
+        </div>
+      </section>
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold">
@@ -90,14 +150,40 @@ function Dashboard() {
       {/* Today's ticket stats */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Waiting",    value: today?.waiting   ?? 0, icon: Clock,       color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950" },
-          { label: "Serving",    value: (today?.called ?? 0) + (today?.serving ?? 0), icon: Ticket, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950" },
-          { label: "Completed",  value: today?.completed ?? 0, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950" },
-          { label: "No-show",    value: today?.noShow    ?? 0, icon: UserX,       color: "text-red-500",    bg: "bg-red-50 dark:bg-red-950" },
+          {
+            label: "Waiting",
+            value: today?.waiting ?? 0,
+            icon: Clock,
+            color: "text-amber-600",
+            bg: "bg-amber-50 dark:bg-amber-950",
+          },
+          {
+            label: "Serving",
+            value: (today?.called ?? 0) + (today?.serving ?? 0),
+            icon: Ticket,
+            color: "text-blue-600",
+            bg: "bg-blue-50 dark:bg-blue-950",
+          },
+          {
+            label: "Completed",
+            value: today?.completed ?? 0,
+            icon: TrendingUp,
+            color: "text-green-600",
+            bg: "bg-green-50 dark:bg-green-950",
+          },
+          {
+            label: "No-show",
+            value: today?.noShow ?? 0,
+            icon: UserX,
+            color: "text-red-500",
+            bg: "bg-red-50 dark:bg-red-950",
+          },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label}>
             <CardContent className="flex items-center gap-4 p-5">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg} ${color}`}>
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg} ${color}`}
+              >
                 <Icon className="h-5 w-5" />
               </div>
               <div>
@@ -115,7 +201,9 @@ function Dashboard() {
           <CardContent className="flex items-center gap-3 p-4">
             <Clock className="h-5 w-5 text-primary" />
             <span className="font-semibold">Avg wait time today:</span>
-            <span className="text-lg font-black text-primary">{formatDuration(data.avg_wait_sec)}</span>
+            <span className="text-lg font-black text-primary">
+              {formatDuration(data.avg_wait_sec)}
+            </span>
           </CardContent>
         </Card>
       )}
@@ -123,10 +211,10 @@ function Dashboard() {
       {/* Resource counts */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Branches",  value: branches.length,  icon: GitBranch, to: "/app/branches" },
-          { label: "Queues",    value: queues.length,    icon: ListOrdered, to: "/app/queues" },
-          { label: "Devices",   value: devices.length,   icon: Cpu,       to: "/app/devices" },
-          { label: "Employees", value: employees.length, icon: Users,     to: "/app/employees" },
+          { label: "Branches", value: branches.length, icon: GitBranch, to: "/app/branches" },
+          { label: "Queues", value: queues.length, icon: ListOrdered, to: "/app/queues" },
+          { label: "Devices", value: devices.length, icon: Cpu, to: "/app/devices" },
+          { label: "Employees", value: employees.length, icon: Users, to: "/app/employees" },
         ].map(({ label, value, icon: Icon, to }) => (
           <Link key={label} to={to as any}>
             <Card className="transition hover:border-primary/40 cursor-pointer">
@@ -148,7 +236,9 @@ function Dashboard() {
       {/* Hourly chart */}
       {hourlyData.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Tickets by hour today</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Tickets by hour today</CardTitle>
+          </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={hourlyData}>
@@ -168,14 +258,20 @@ function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Operator performance</CardTitle>
-            <Link to="/app/analytics" className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Link
+              to="/app/analytics"
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
               Full analytics <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {data!.operatorPerformance!.slice(0, 5).map((op) => (
-                <div key={op.operator_id} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
+                <div
+                  key={op.operator_id}
+                  className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2"
+                >
                   <span className="text-sm font-medium">{op.operator_name}</span>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{op.completed_tickets} tickets</span>
@@ -190,19 +286,41 @@ function Dashboard() {
 
       {/* Quick links for devices */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Quick access</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Quick access</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Operator console", to: "/operator", desc: "Call tickets, serve customers", color: "border-blue-200 bg-blue-50 dark:bg-blue-950" },
-              { label: "Waiting display",  to: "/display",  desc: "Big screen queue board",       color: "border-indigo-200 bg-indigo-50 dark:bg-indigo-950" },
-              { label: "Self-service kiosk", to: "/kiosk", desc: "Customer ticket kiosk",         color: "border-cyan-200 bg-cyan-50 dark:bg-cyan-950" },
+              {
+                label: "Operator console",
+                to: "/operator",
+                desc: "Call tickets, serve customers",
+                color: "border-blue-200 bg-blue-50 dark:bg-blue-950",
+              },
+              {
+                label: "Waiting display",
+                to: "/display",
+                desc: "Big screen queue board",
+                color: "border-indigo-200 bg-indigo-50 dark:bg-indigo-950",
+              },
+              {
+                label: "Self-service kiosk",
+                to: "/kiosk",
+                desc: "Customer ticket kiosk",
+                color: "border-cyan-200 bg-cyan-50 dark:bg-cyan-950",
+              },
             ].map(({ label, to, desc, color }) => (
-              <Link key={to} to={to as any}
-                className={`rounded-xl border p-4 transition hover:shadow-sm ${color}`}>
+              <Link
+                key={to}
+                to={to as any}
+                className={`rounded-xl border p-4 transition hover:shadow-sm ${color}`}
+              >
                 <p className="font-semibold text-sm">{label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
-                <Badge variant="outline" className="mt-2 text-[10px] font-mono">{to}</Badge>
+                <Badge variant="outline" className="mt-2 text-[10px] font-mono">
+                  {to}
+                </Badge>
               </Link>
             ))}
           </div>
@@ -211,4 +329,3 @@ function Dashboard() {
     </div>
   );
 }
-

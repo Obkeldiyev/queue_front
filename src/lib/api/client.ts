@@ -30,17 +30,29 @@ async function fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, time
 // Tokens are only accessed client-side — never read at module level to avoid SSR mismatch
 function getStoredToken(key: string): string | null {
   if (typeof window === "undefined") return null;
-  try { return localStorage.getItem(key); } catch { return null; }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
 function storeToken(key: string, value: string) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
 }
 
 function removeToken(key: string) {
   if (typeof window === "undefined") return;
-  try { localStorage.removeItem(key); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function setTokens(access: string, refresh: string) {
@@ -61,18 +73,21 @@ async function tryRefresh(): Promise<boolean> {
   const refreshToken = getStoredToken("qms_refresh_token");
   if (!refreshToken) return false;
   try {
-    const res = await fetch(`${getBaseUrl()}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${getBaseUrl()}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
     if (!res.ok) {
-      clearTokens();
-      // Redirect to login — session is fully expired
-      redirectToLogin();
+      if (res.status === 401 || res.status === 403) {
+        clearTokens();
+        removeToken("qms-auth-v1");
+        redirectToLogin();
+      }
       return false;
     }
-    const data = await res.json() as { data: { accessToken: string; refreshToken: string } };
+    const data = (await res.json()) as { data: { accessToken: string; refreshToken: string } };
+    if (getStoredToken("qms_refresh_token") !== refreshToken) return !!getAccessToken();
     setTokens(data.data.accessToken, data.data.refreshToken);
     return true;
   } catch {
@@ -83,15 +98,34 @@ async function tryRefresh(): Promise<boolean> {
 function redirectToLogin() {
   if (typeof window === "undefined") return;
   // Only redirect if not already on the login page
-  if (!window.location.pathname.startsWith("/login")) {
+  if (/^\/(app|operator)(\/|$)/.test(window.location.pathname)) {
     // Small delay so any in-flight state updates can complete
-    setTimeout(() => { window.location.href = "/login"; }, 100);
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 100);
   }
 }
 
 // Expose refresh helper for callers that want to proactively refresh tokens
-export async function refreshTokens(): Promise<boolean> {
-  return tryRefresh();
+let refreshInFlight: Promise<boolean> | null = null;
+export function refreshTokens(): Promise<boolean> {
+  if (!refreshInFlight) {
+    const refresh = async () => {
+      const original = getStoredToken("qms_refresh_token");
+      const run = () =>
+        original !== getStoredToken("qms_refresh_token")
+          ? Promise.resolve(!!getAccessToken())
+          : tryRefresh();
+      // Coordinate rotating tokens across tabs as well as concurrent requests.
+      return typeof navigator !== "undefined" && navigator.locks
+        ? navigator.locks.request("qms-session-refresh", run)
+        : run();
+    };
+    refreshInFlight = refresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -103,7 +137,7 @@ export interface ApiResponse<T = unknown> {
 
 export async function apiRequest<T = unknown>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
   const makeRequest = async (token: string | null) => {
     const headers: Record<string, string> = {
@@ -114,29 +148,39 @@ export async function apiRequest<T = unknown>(
     return fetchWithTimeout(`${getBaseUrl()}${path}`, { ...options, headers });
   };
 
+  const requestToken = getAccessToken();
   let res: Response;
   try {
-    res = await makeRequest(getAccessToken());
+    res = await makeRequest(requestToken);
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Backend request timed out. Check that the backend is reachable and that the API proxy is configured correctly.");
+      throw new Error(
+        "Backend request timed out. Check that the backend is reachable and that the API proxy is configured correctly.",
+      );
     }
     throw err;
   }
 
   // Auto-refresh on 401
-  if (res.status === 401) {
-    const refreshed = await tryRefresh();
+  if (
+    res.status === 401 &&
+    (!path.startsWith("/auth/") || path === "/auth/me") &&
+    !new Headers(options.headers).has("x-device-token")
+  ) {
+    const refreshed =
+      (requestToken !== getAccessToken() && !!getAccessToken()) || (await refreshTokens());
     if (refreshed) res = await makeRequest(getAccessToken());
   }
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
-      const e = await res.json() as { message?: string; error?: string; errors?: unknown };
+      const e = (await res.json()) as { message?: string; error?: string; errors?: unknown };
       msg = e.message ?? e.error ?? msg;
       console.error("[API error]", path, res.status, e);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new Error(msg);
   }
 
@@ -144,12 +188,10 @@ export async function apiRequest<T = unknown>(
 }
 
 export const api = {
-  get:    <T = unknown>(path: string) =>
-    apiRequest<T>(path, { method: "GET" }),
-  post:   <T = unknown>(path: string, body?: unknown) =>
-    apiRequest<T>(path, { method: "POST",  body: body ? JSON.stringify(body) : undefined }),
-  patch:  <T = unknown>(path: string, body?: unknown) =>
+  get: <T = unknown>(path: string) => apiRequest<T>(path, { method: "GET" }),
+  post: <T = unknown>(path: string, body?: unknown) =>
+    apiRequest<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  patch: <T = unknown>(path: string, body?: unknown) =>
     apiRequest<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  delete: <T = unknown>(path: string) =>
-    apiRequest<T>(path, { method: "DELETE" }),
+  delete: <T = unknown>(path: string) => apiRequest<T>(path, { method: "DELETE" }),
 };

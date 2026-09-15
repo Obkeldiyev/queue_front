@@ -51,7 +51,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        try { await authApi.logout(); } catch { /* ignore network errors on logout */ }
+        try {
+          await authApi.logout();
+        } catch {
+          /* ignore network errors on logout */
+        }
         clearTokens();
         set({ user: null, isAuthenticated: false });
       },
@@ -59,12 +63,12 @@ export const useAuthStore = create<AuthState>()(
       loadUser: async () => {
         if (typeof window === "undefined") return;
 
-        const accessToken  = localStorage.getItem("qms_access_token");
+        const accessToken = localStorage.getItem("qms_access_token");
         const refreshToken = localStorage.getItem("qms_refresh_token");
 
         // Nothing stored — not logged in
         if (!accessToken && !refreshToken) {
-          set({ isLoading: false });
+          set({ user: null, isAuthenticated: false, isLoading: false });
           return;
         }
 
@@ -72,8 +76,9 @@ export const useAuthStore = create<AuthState>()(
         if (!accessToken && refreshToken) {
           const ok = await refreshTokens();
           if (!ok) {
-            clearTokens();
-            set({ user: null, isAuthenticated: false, isLoading: false });
+            if (!localStorage.getItem("qms_refresh_token")) {
+              set({ user: null, isAuthenticated: false, isLoading: false });
+            }
             return;
           }
           // refreshTokens() stored the new access token — fall through to /me
@@ -91,7 +96,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {
           // /me failed — try persisted user as a fallback so UI doesn't flash logout
           const persisted = getUserFromStorage();
-          if (persisted) {
+          if (persisted && localStorage.getItem("qms_refresh_token")) {
             set({ user: persisted, isAuthenticated: true });
           } else {
             clearTokens();
@@ -112,8 +117,8 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },
-    }
-  )
+    },
+  ),
 );
 
 export function getUserFromStorage(): AuthUser | null {

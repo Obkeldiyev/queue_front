@@ -11,6 +11,7 @@ function hasSession(): boolean {
 }
 
 export function requireCompanyUser() {
+  if (typeof window === "undefined") return;
   if (!hasSession()) throw redirect({ to: "/login" as any });
   const user = getUserFromStorage();
   if (!user) return;
@@ -21,7 +22,7 @@ export function isCompanyAdminRole(user = getUserFromStorage()): boolean {
   if (!user || user.type !== "company_user") return false;
   const roleTypes = user.roleTypes ?? [];
   return roleTypes.some((roleType) =>
-    ["COMPANY_ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(roleType)
+    ["COMPANY_ADMIN", "BRANCH_MANAGER", "SUPERVISOR"].includes(roleType),
   );
 }
 
@@ -36,6 +37,7 @@ export function requireCompanyAdmin() {
 }
 
 export function requireSuperAdmin() {
+  if (typeof window === "undefined") return;
   if (!hasSession()) throw redirect({ to: "/login" as any });
   const user = getUserFromStorage();
   if (!user) return;
@@ -43,5 +45,6 @@ export function requireSuperAdmin() {
 }
 
 export function requireAuth() {
+  if (typeof window === "undefined") return;
   if (!hasSession()) throw redirect({ to: "/login" as any });
 }

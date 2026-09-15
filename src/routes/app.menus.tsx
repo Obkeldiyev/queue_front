@@ -9,17 +9,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import {
-  Plus, Trash2, ChevronRight, Ticket, FolderOpen, GripVertical,
-  Eye, EyeOff, ChevronDown, ChevronUp,
+  Plus,
+  Trash2,
+  ChevronRight,
+  Ticket,
+  FolderOpen,
+  GripVertical,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,10 +62,13 @@ function Menus() {
 
   const { data: queues = [] } = useQuery({
     queryKey: ["queues", companyId, currentBranchId],
-    queryFn: () => queuesApi.list({
-      company_id: companyId,
-      ...(currentBranchId && { branch_id: currentBranchId }),
-    }).then((r) => r.data),
+    queryFn: () =>
+      queuesApi
+        .list({
+          company_id: companyId,
+          ...(currentBranchId && { branch_id: currentBranchId }),
+        })
+        .then((r) => r.data),
     enabled: !!companyId,
   });
 
@@ -77,7 +96,16 @@ function Menus() {
   const openCreate = (parent: Menu | null = null) => {
     setEditItem(null);
     setParentId(parent?.id ?? null);
-    setForm({ name: "", name_uz: "", name_ru: "", name_en: "", label: "", queue_group_id: "", icon_class: "", is_visible: true });
+    setForm({
+      name: "",
+      name_uz: "",
+      name_ru: "",
+      name_en: "",
+      label: "",
+      queue_group_id: "",
+      icon_class: "",
+      is_visible: true,
+    });
     setDialogOpen(true);
   };
 
@@ -103,9 +131,9 @@ function Menus() {
         company_id: companyId,
         parent_id: parentId ?? undefined,
         name: form.name_uz || form.name,
-        ...(form.name_uz && { name_uz: form.name_uz } as any),
-        ...(form.name_ru && { name_ru: form.name_ru } as any),
-        ...(form.name_en && { name_en: form.name_en } as any),
+        ...(form.name_uz && ({ name_uz: form.name_uz } as any)),
+        ...(form.name_ru && ({ name_ru: form.name_ru } as any)),
+        ...(form.name_en && ({ name_en: form.name_en } as any)),
         label: form.label || form.name_uz || form.name,
         queue_group_id: form.queue_group_id || undefined,
         icon_class: form.icon_class || undefined,
@@ -124,9 +152,9 @@ function Menus() {
     mutationFn: () =>
       menusApi.update(editItem!.id, {
         name: form.name_uz || form.name,
-        ...(form.name_uz !== undefined && { name_uz: form.name_uz } as any),
-        ...(form.name_ru !== undefined && { name_ru: form.name_ru } as any),
-        ...(form.name_en !== undefined && { name_en: form.name_en } as any),
+        ...(form.name_uz !== undefined && ({ name_uz: form.name_uz } as any)),
+        ...(form.name_ru !== undefined && ({ name_ru: form.name_ru } as any)),
+        ...(form.name_en !== undefined && ({ name_en: form.name_en } as any)),
         label: form.label || form.name_uz || form.name,
         queue_group_id: form.queue_group_id || null,
         icon_class: form.icon_class || undefined,
@@ -149,9 +177,9 @@ function Menus() {
   });
 
   const moveMutation = useMutation({
-    mutationFn: (items: Array<{ id: string; sort_order: number }>) =>
-      menusApi.reorder(items),
+    mutationFn: (items: Array<{ id: string; sort_order: number }>) => menusApi.reorder(items),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["menus"] }),
+    onError: (e) => toast.error(e.message),
   });
 
   const move = (items: Menu[], idx: number, dir: -1 | 1) => {
@@ -165,7 +193,9 @@ function Menus() {
   const getQueueName = (queueGroupId: string | null | undefined) => {
     if (!queueGroupId) return null;
     const q = queues.find((q) => q.id === queueGroupId);
-    return q ? (loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz) : queueGroupId.slice(0, 8);
+    return q
+      ? loc(q as unknown as Record<string, unknown>, "name", lang) || q.name_uz
+      : queueGroupId.slice(0, 8);
   };
 
   if (!companyId) {
@@ -194,9 +224,24 @@ function Menus() {
       {/* How it works */}
       <div className="mb-5 grid grid-cols-3 gap-3 text-sm">
         {[
-          { icon: FolderOpen, title: "Category", desc: "No queue linked — navigates to sub-items", color: "text-blue-600" },
-          { icon: Ticket,     title: "Service",  desc: "Queue linked — tapping issues a ticket",  color: "text-green-600" },
-          { icon: ChevronRight, title: "Nesting", desc: "Categories can contain categories or services", color: "text-purple-600" },
+          {
+            icon: FolderOpen,
+            title: "Category",
+            desc: "No queue linked — navigates to sub-items",
+            color: "text-blue-600",
+          },
+          {
+            icon: Ticket,
+            title: "Service",
+            desc: "Queue linked — tapping issues a ticket",
+            color: "text-green-600",
+          },
+          {
+            icon: ChevronRight,
+            title: "Nesting",
+            desc: "Categories can contain categories or services",
+            color: "text-purple-600",
+          },
         ].map(({ icon: Icon, title, desc, color }) => (
           <div key={title} className="flex items-start gap-3 rounded-xl border bg-card p-4">
             <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${color}`} />
@@ -218,7 +263,9 @@ function Menus() {
         <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
           <FolderOpen className="mx-auto mb-3 h-8 w-8 opacity-30" />
           <p className="font-medium">No menu items yet</p>
-          <p className="mt-1 text-sm">Create your first item above. Add categories then link services to queues.</p>
+          <p className="mt-1 text-sm">
+            Create your first item above. Add categories then link services to queues.
+          </p>
         </div>
       ) : (
         <div className="space-y-1">
@@ -237,6 +284,10 @@ function Menus() {
               }}
               onAddChild={openCreate}
               onMove={(i, d) => move(menus, i, d)}
+              siblings={menus}
+              onReorder={(items) =>
+                moveMutation.mutate(items.map((m, i) => ({ id: m.id, sort_order: i })))
+              }
               getQueueName={getQueueName}
             />
           ))}
@@ -254,12 +305,16 @@ function Menus() {
           <div className="space-y-4">
             {/* 3-language name fields */}
             <div className="rounded-lg border p-3 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name (3 languages)</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Name (3 languages)
+              </p>
               <div>
                 <Label className="text-xs">🇺🇿 O'zbekcha *</Label>
                 <Input
                   value={form.name_uz}
-                  onChange={(e) => setForm({ ...form, name_uz: e.target.value, name: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, name_uz: e.target.value, name: e.target.value })
+                  }
                   placeholder="e.g. Qabul, Konsultatsiya…"
                   className="mt-1"
                   autoFocus
@@ -296,7 +351,9 @@ function Menus() {
               </Label>
               <Select
                 value={form.queue_group_id || "__none__"}
-                onValueChange={(v) => setForm({ ...form, queue_group_id: v === "__none__" ? "" : v })}
+                onValueChange={(v) =>
+                  setForm({ ...form, queue_group_id: v === "__none__" ? "" : v })
+                }
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="No queue — category only" />
@@ -344,7 +401,9 @@ function Menus() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={() => (editItem ? updateMutation.mutate() : createMutation.mutate())}
               disabled={!form.name_uz || createMutation.isPending || updateMutation.isPending}
@@ -370,10 +429,26 @@ interface TreeItemProps {
   onDelete: (id: string) => void;
   onAddChild: (parent: Menu) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
+  siblings: Menu[];
+  onReorder: (items: Menu[]) => void;
   getQueueName: (id: string | null | undefined) => string | null;
 }
 
-function MenuTreeItem({ item, idx, total, depth, lang, queues, onEdit, onDelete, onAddChild, onMove, getQueueName }: TreeItemProps) {
+function MenuTreeItem({
+  item,
+  idx,
+  total,
+  depth,
+  lang,
+  queues,
+  onEdit,
+  onDelete,
+  onAddChild,
+  onMove,
+  getQueueName,
+  siblings,
+  onReorder,
+}: TreeItemProps) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = (item.children?.length ?? 0) > 0;
   const leaf = isLeaf(item);
@@ -387,36 +462,76 @@ function MenuTreeItem({ item, idx, total, depth, lang, queues, onEdit, onDelete,
             ? "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20"
             : "border-border bg-card"
         }`}
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          e.dataTransfer.setData(
+            "application/qms-menu",
+            JSON.stringify({ id: item.id, parent: item.parent_id || null }),
+          );
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const source = JSON.parse(e.dataTransfer.getData("application/qms-menu"));
+            if (source.parent !== (item.parent_id || null)) return;
+            const from = siblings.findIndex((m) => m.id === source.id);
+            if (from < 0 || from === idx) return;
+            const next = [...siblings];
+            const [m] = next.splice(from, 1);
+            next.splice(idx, 0, m);
+            onReorder(next);
+          } catch {}
+        }}
         style={{ marginLeft: depth * 24 }}
       >
         {/* Drag handle + reorder */}
         <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/40" />
         <div className="flex flex-col gap-0.5 shrink-0">
-          <button onClick={() => onMove(idx, -1)} disabled={idx === 0}
-            className="rounded p-0.5 hover:bg-muted disabled:opacity-20 transition">
+          <button
+            onClick={() => onMove(idx, -1)}
+            disabled={idx === 0}
+            className="rounded p-0.5 hover:bg-muted disabled:opacity-20 transition"
+          >
             <ChevronUp className="h-3 w-3" />
           </button>
-          <button onClick={() => onMove(idx, 1)} disabled={idx === total - 1}
-            className="rounded p-0.5 hover:bg-muted disabled:opacity-20 transition">
+          <button
+            onClick={() => onMove(idx, 1)}
+            disabled={idx === total - 1}
+            className="rounded p-0.5 hover:bg-muted disabled:opacity-20 transition"
+          >
             <ChevronDown className="h-3 w-3" />
           </button>
         </div>
 
         {/* Icon */}
-        {leaf
-          ? <Ticket className="h-4 w-4 shrink-0 text-green-600" />
-          : <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
-        }
+        {leaf ? (
+          <Ticket className="h-4 w-4 shrink-0 text-green-600" />
+        ) : (
+          <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
+        )}
 
         {/* Label */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{item.label || item.name}</span>
+            <span className="font-medium text-sm">
+              {loc(item as any, "name", lang as "en" | "ru" | "uz") || item.label || item.name}
+            </span>
             {!item.is_visible && (
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">Hidden</Badge>
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                Hidden
+              </Badge>
             )}
             {queueName && (
-              <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100 dark:bg-green-900 dark:text-green-300">
+              <Badge
+                variant="secondary"
+                className="text-[10px] text-green-700 bg-green-100 dark:bg-green-900 dark:text-green-300"
+              >
                 → {queueName}
               </Badge>
             )}
@@ -430,24 +545,36 @@ function MenuTreeItem({ item, idx, total, depth, lang, queues, onEdit, onDelete,
         <div className="flex items-center gap-1 shrink-0">
           {/* Collapse children */}
           {hasChildren && (
-            <button onClick={() => setCollapsed(!collapsed)}
-              className="rounded p-1.5 text-muted-foreground hover:bg-muted transition text-xs">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="rounded p-1.5 text-muted-foreground hover:bg-muted transition text-xs"
+            >
               {collapsed ? "▶" : "▼"}
             </button>
           )}
           {/* Add child */}
           {!leaf && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
-              onClick={() => onAddChild(item)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs gap-1"
+              onClick={() => onAddChild(item)}
+            >
               <Plus className="h-3 w-3" /> Add sub-item
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs"
-            onClick={() => onEdit(item)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => onEdit(item)}
+          >
             Edit
           </Button>
-          <button onClick={() => onDelete(item.id)}
-            className="rounded p-1.5 text-destructive hover:bg-destructive/10 transition">
+          <button
+            onClick={() => onDelete(item.id)}
+            className="rounded p-1.5 text-destructive hover:bg-destructive/10 transition"
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -473,8 +600,10 @@ function MenuTreeItem({ item, idx, total, depth, lang, queues, onEdit, onDelete,
                 const to = i + d;
                 if (to < 0 || to >= arr.length) return;
                 [arr[i], arr[to]] = [arr[to], arr[i]];
-                // Would call reorder API here for children
+                onReorder(arr);
               }}
+              siblings={item.children!}
+              onReorder={onReorder}
               getQueueName={getQueueName}
             />
           ))}
@@ -483,4 +612,3 @@ function MenuTreeItem({ item, idx, total, depth, lang, queues, onEdit, onDelete,
     </div>
   );
 }
-

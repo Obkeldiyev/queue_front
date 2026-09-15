@@ -1,5 +1,14 @@
-import { createFileRoute, Link, Outlet, useRouterState, redirect, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useRouterState,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
 import React from "react";
+import { useRealtime } from "@/hooks/use-realtime";
+import { ThemeToggle } from "@/components/qms/RulesPanel";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore, getUserFromStorage } from "@/lib/auth-store";
 import { useStore } from "@/lib/store";
@@ -7,17 +16,41 @@ import { isCompanyAdminRole } from "@/lib/guards";
 import { useLang, LANGS, loc } from "@/lib/i18n";
 import { branchesApi, companiesApi } from "@/lib/api";
 import {
-  LayoutDashboard, Building2, GitBranch, Layers, ListOrdered, Monitor, Users,
-  Cpu, Menu as MenuIcon, FileText, Ticket, BarChart3, ShieldCheck, Settings,
-  Bell, LogOut, ChevronDown, Tv2, KeyboardIcon,
+  LayoutDashboard,
+  Building2,
+  GitBranch,
+  Layers,
+  ListOrdered,
+  Monitor,
+  Users,
+  Cpu,
+  Menu as MenuIcon,
+  FileText,
+  Ticket,
+  BarChart3,
+  ShieldCheck,
+  Settings,
+  Bell,
+  LogOut,
+  ChevronDown,
+  Tv2,
+  KeyboardIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 
@@ -34,7 +67,8 @@ export const Route = createFileRoute("/app")({
     if (user?.type === "platform_user" && pathname !== "/app/companies") {
       throw redirect({ to: "/app/companies" as any });
     }
-    if (user?.type === "company_user" && !isCompanyAdminRole(user)) throw redirect({ to: "/operator" as any });
+    if (user?.type === "company_user" && !isCompanyAdminRole(user))
+      throw redirect({ to: "/operator" as any });
   },
   component: AppLayout,
 });
@@ -48,17 +82,18 @@ type NavItem = {
 };
 
 const ADMIN_NAV: NavItem[] = [
-  { to: "/app",               label: "dashboard",     icon: LayoutDashboard, exact: true },
-  { to: "/app/branches",      label: "branches",      icon: GitBranch },
-  { to: "/app/services",      label: "services",      icon: Layers },
-  { to: "/app/queues",        label: "queueDesigner", icon: ListOrdered },
-  { to: "/app/counters",      label: "counters",      icon: Monitor },
-  { to: "/app/employees",     label: "employees",     icon: Users },
-  { to: "/app/devices",       label: "devices",       icon: Cpu },
-  { to: "/app/menus",         label: "menuBuilder",   icon: MenuIcon },
-  { to: "/app/analytics",     label: "analytics",     icon: BarChart3 },
-  { to: "/app/audit",         label: "auditLog",      icon: ShieldCheck },
-  { to: "/app/kioskEditor",   label: "settings",      icon: Settings, extraLabel: "Kiosk Editor" },
+  { to: "/app", label: "dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/app/branches", label: "branches", icon: GitBranch },
+  { to: "/app/services", label: "services", icon: Layers },
+  { to: "/app/queues", label: "queueDesigner", icon: ListOrdered },
+  { to: "/app/counters", label: "counters", icon: Monitor },
+  { to: "/app/employees", label: "employees", icon: Users },
+  { to: "/app/devices", label: "devices", icon: Cpu },
+  { to: "/app/menus", label: "menuBuilder", icon: MenuIcon },
+  { to: "/app/analytics", label: "analytics", icon: BarChart3 },
+  { to: "/app/audit", label: "auditLog", icon: ShieldCheck },
+  { to: "/app/tickets", label: "tickets", icon: Ticket },
+  { to: "/app/settings", label: "settings", icon: Settings },
 ];
 
 function roleBadge(user: ReturnType<typeof getUserFromStorage>, t: (key: any) => string): string {
@@ -79,11 +114,8 @@ function AppLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  if (user?.type === "platform_user") {
-    return <Outlet />;
-  }
-
   const companyId = user?.company_id ?? currentCompanyId ?? "";
+  useRealtime({ companyId, enabled: !!companyId });
 
   // Load real branches for the company
   const { data: branches = [] } = useQuery({
@@ -106,16 +138,23 @@ function AppLayout() {
     void navigate({ to: "/login" as any });
   };
 
-  const branchId = currentBranchId || branches[0]?.id || "";
+  const branchId = branches.some((b) => b.id === currentBranchId)
+    ? currentBranchId!
+    : branches[0]?.id || "";
+  React.useEffect(() => {
+    if (branchId && branchId !== currentBranchId) setCurrentBranch(branchId);
+  }, [branchId, currentBranchId, setCurrentBranch]);
+  if (user?.type === "platform_user") return <Outlet />;
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
-
       {/* ── Sidebar ── */}
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
         {/* Logo */}
         <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
-          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground font-black text-sm">Q</div>
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground font-black text-sm">
+            Q
+          </div>
           <div>
             <div className="text-sm font-bold leading-none">Qubit QMS</div>
             <div className="text-[10px] text-sidebar-foreground/50 mt-0.5 truncate max-w-[130px]">
@@ -148,15 +187,20 @@ function AppLayout() {
 
         {/* Device quick-links */}
         <div className="border-t border-sidebar-border p-3 space-y-1">
-          <p className="px-1 text-[10px] uppercase tracking-widest text-sidebar-foreground/40 mb-1.5">Devices</p>
+          <p className="px-1 text-[10px] uppercase tracking-widest text-sidebar-foreground/40 mb-1.5">
+            Devices
+          </p>
           <div className="grid grid-cols-3 gap-1">
             {[
               { to: "/operator", label: "Operator", icon: KeyboardIcon },
-              { to: "/display",  label: "Display",  icon: Tv2 },
-              { to: "/kiosk",    label: "Kiosk",    icon: Ticket },
+              { to: "/display", label: "Display", icon: Tv2 },
+              { to: "/kiosk", label: "Kiosk", icon: Ticket },
             ].map(({ to, label, icon: Icon }) => (
-              <Link key={to} to={to as any}
-                className="flex flex-col items-center gap-1 rounded-lg p-2 text-[10px] text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition">
+              <Link
+                key={to}
+                to={to as any}
+                className="flex flex-col items-center gap-1 rounded-lg p-2 text-[10px] text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition"
+              >
                 <Icon className="h-3.5 w-3.5" />
                 {label}
               </Link>
@@ -167,10 +211,8 @@ function AppLayout() {
 
       {/* ── Main ── */}
       <div className="flex min-w-0 flex-1 flex-col">
-
         {/* Header */}
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4">
-
           {/* Branch selector */}
           <Select value={branchId} onValueChange={setCurrentBranch}>
             <SelectTrigger className="h-9 w-48">
@@ -189,6 +231,7 @@ function AppLayout() {
           </Select>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             {/* Language toggle */}
             <div className="flex gap-0.5 rounded-lg border p-0.5">
               {LANGS.map((l) => (
@@ -221,9 +264,13 @@ function AppLayout() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <div className="px-3 py-2">
-                  <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
+                  <p className="text-sm font-medium">
+                    {user?.first_name} {user?.last_name}
+                  </p>
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  <Badge variant="outline" className="mt-1 text-[10px]">{roleBadge(user, t)}</Badge>
+                  <Badge variant="outline" className="mt-1 text-[10px]">
+                    {roleBadge(user, t)}
+                  </Badge>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -244,7 +291,18 @@ function AppLayout() {
         </header>
 
         {/* Page content */}
-        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+        <nav className="flex gap-2 overflow-x-auto border-b p-2 md:hidden">
+          {ADMIN_NAV.map((n) => (
+            <Link
+              key={n.to}
+              to={n.to as any}
+              className="whitespace-nowrap rounded-lg px-3 py-2 text-sm"
+            >
+              {t(n.label as any)}
+            </Link>
+          ))}
+        </nav>
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>

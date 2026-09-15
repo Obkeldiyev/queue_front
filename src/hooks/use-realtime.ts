@@ -10,7 +10,11 @@ function getWsUrl(branchId?: string, companyId?: string): string {
   const rawEnv = import.meta.env.VITE_WS_URL as string | undefined;
 
   let base: string;
-  if (!rawEnv || rawEnv === "/ws" || (!rawEnv.startsWith("ws://") && !rawEnv.startsWith("wss://"))) {
+  if (
+    !rawEnv ||
+    rawEnv === "/ws" ||
+    (!rawEnv.startsWith("ws://") && !rawEnv.startsWith("wss://"))
+  ) {
     // Derive absolute URL from current page origin
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
     base = `${proto}://${window.location.host}/ws`;
@@ -25,6 +29,8 @@ function getWsUrl(branchId?: string, companyId?: string): string {
 }
 
 type WsEventType =
+  | "resource:changed"
+  | "queue:reset"
   | "ticket:issued"
   | "ticket:called"
   | "ticket:completed"
@@ -60,17 +66,15 @@ interface UseRealtimeOptions {
   enabled?: boolean;
 }
 
-export type RealtimeStatus =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "disconnected";
+export type RealtimeStatus = "idle" | "connecting" | "connected" | "reconnecting" | "disconnected";
 
 export function useRealtime(options: UseRealtimeOptions = {}) {
   const {
-    branchId, companyId,
-    onTicketCalled, onTicketIssued, onTicketCompleted,
+    branchId,
+    companyId,
+    onTicketCalled,
+    onTicketIssued,
+    onTicketCompleted,
     enabled = true,
   } = options;
 
@@ -83,53 +87,74 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
   const onCalledRef = useRef(onTicketCalled);
   const onIssuedRef = useRef(onTicketIssued);
   const onCompletedRef = useRef(onTicketCompleted);
-  useEffect(() => { onCalledRef.current = onTicketCalled; }, [onTicketCalled]);
-  useEffect(() => { onIssuedRef.current = onTicketIssued; }, [onTicketIssued]);
-  useEffect(() => { onCompletedRef.current = onTicketCompleted; }, [onTicketCompleted]);
+  useEffect(() => {
+    onCalledRef.current = onTicketCalled;
+  }, [onTicketCalled]);
+  useEffect(() => {
+    onIssuedRef.current = onTicketIssued;
+  }, [onTicketIssued]);
+  useEffect(() => {
+    onCompletedRef.current = onTicketCompleted;
+  }, [onTicketCompleted]);
 
-  const handleMessage = useCallback((msg: WsMessage) => {
-    switch (msg.event) {
-      case "ticket:issued":
-        void queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        void queryClient.invalidateQueries({ queryKey: ["queues"] });
-        void queryClient.invalidateQueries({ queryKey: ["tickets-waiting-kiosk"] });
-        onIssuedRef.current?.(msg);
-        break;
+  const handleMessage = useCallback(
+    (msg: WsMessage) => {
+      if (msg.event.startsWith("ticket:") || msg.event === "queue:reset") {
+        void queryClient.invalidateQueries({
+          predicate: (q) =>
+            /^(tickets|operator-self-stats|audit-logs|analytics|dashboard)/.test(
+              String(q.queryKey[0]),
+            ),
+        });
+      }
+      if (msg.event === "resource:changed") {
+        void queryClient.invalidateQueries();
+        window.dispatchEvent(new CustomEvent("qubit:configuration-changed"));
+      }
+      switch (msg.event) {
+        case "ticket:issued":
+          void queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          void queryClient.invalidateQueries({ queryKey: ["queues"] });
+          void queryClient.invalidateQueries({ queryKey: ["tickets-waiting-kiosk"] });
+          onIssuedRef.current?.(msg);
+          break;
 
-      case "ticket:called":
-        void queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        void queryClient.invalidateQueries({ queryKey: ["tickets-display"] });
-        onCalledRef.current?.(msg);
-        break;
+        case "ticket:called":
+          void queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          void queryClient.invalidateQueries({ queryKey: ["tickets-display"] });
+          onCalledRef.current?.(msg);
+          break;
 
-      case "ticket:completed":
-        void queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        onCompletedRef.current?.(msg);
-        break;
+        case "ticket:completed":
+          void queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          onCompletedRef.current?.(msg);
+          break;
 
-      case "ticket:no_show":
-      case "ticket:cancelled":
-      case "ticket:transferred":
-        void queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        break;
+        case "ticket:no_show":
+        case "ticket:cancelled":
+        case "ticket:transferred":
+          void queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          break;
 
-      case "counter:session_opened":
-      case "counter:session_closed":
-        void queryClient.invalidateQueries({ queryKey: ["counters"] });
-        break;
+        case "counter:session_opened":
+        case "counter:session_closed":
+          void queryClient.invalidateQueries({ queryKey: ["counters"] });
+          break;
 
-      case "order:status_changed":
-        void queryClient.invalidateQueries({ queryKey: ["orders"] });
-        break;
+        case "order:status_changed":
+          void queryClient.invalidateQueries({ queryKey: ["orders"] });
+          break;
 
-      case "device:heartbeat":
-        void queryClient.invalidateQueries({ queryKey: ["devices"] });
-        break;
+        case "device:heartbeat":
+          void queryClient.invalidateQueries({ queryKey: ["devices"] });
+          break;
 
-      default:
-        break;
-    }
-  }, [queryClient]);
+        default:
+          break;
+      }
+    },
+    [queryClient],
+  );
 
   const connect = useCallback(() => {
     if (!enabled) {
@@ -154,6 +179,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        void queryClient.invalidateQueries();
         wasConnectedRef.current = true;
         setStatus("connected");
       };

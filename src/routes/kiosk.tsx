@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queuesApi, branchesApi, menusApi, type Ticket, type QueueGroup, type Menu } from "@/lib/api";
+import {
+  queuesApi,
+  branchesApi,
+  menusApi,
+  type Ticket,
+  type QueueGroup,
+  type Menu,
+} from "@/lib/api";
 import { useLang, LANGS, loc } from "@/lib/i18n";
 import { useRealtime } from "@/hooks/use-realtime";
+import { useDeviceSettings } from "@/hooks/use-device-settings";
+import { CanvasView } from "@/components/qms/CanvasDesigner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
@@ -16,8 +25,25 @@ export const Route = createFileRoute("/kiosk")({
   component: () => (
     <ClientOnly
       fallback={
-        <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#07111f" }}>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(255,255,255,.15)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} />
+        <div
+          style={{
+            display: "flex",
+            minHeight: "100vh",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#07111f",
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              border: "3px solid rgba(255,255,255,.15)",
+              borderTopColor: "#fff",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
         </div>
       }
     >
@@ -45,11 +71,24 @@ function useIdleReset(enabled: boolean, seconds: number, onReset: () => void) {
   }, [enabled, seconds, onReset]);
 }
 
+function findMenuById(items: Menu[], id: string): Menu | null {
+  for (const item of items) {
+    if (item.id === id) return item;
+    const child = findMenuById(((item as any).children ?? []) as Menu[], id);
+    if (child) return child;
+  }
+  return null;
+}
+
 function KioskPage() {
   const { lang, setLang, t } = useLang();
   const qc = useQueryClient();
   const [branchId, setBranchId] = useState("");
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const { device, settings: design } = useDeviceSettings(deviceId);
+  useEffect(() => {
+    if (device?.branch_id) setBranchId(device.branch_id);
+  }, [device?.branch_id]);
   const [kioskTheme, setKioskTheme] = useState<"dark" | "light">("dark");
   const isDark = kioskTheme !== "light";
   const [now, setNow] = useState(new Date());
@@ -66,17 +105,14 @@ function KioskPage() {
   }, []);
 
   // Auto-reset to root after 35s of inactivity when inside a submenu
-  useIdleReset(
-    menuStack.length > 0 && !issuedTicket,
-    35,
-    () => setMenuStack([])
-  );
+  useIdleReset(menuStack.length > 0 && !issuedTicket, 35, () => setMenuStack([]));
 
   // Bootstrap
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
-    const b = p.get("branch"); const d = p.get("device");
+    const b = p.get("branch");
+    const d = p.get("device");
     if (b) setBranchId(b);
     if (d) setDeviceId(d);
 
@@ -102,11 +138,15 @@ function KioskPage() {
           }
         }
         if (theme) setKioskTheme(theme as "dark" | "light");
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
 
     const onSettingsChanged = (e: Event) => {
-      const { settings } = (e as CustomEvent<{ deviceId: string; settings: Record<string, unknown> }>).detail;
+      const { settings } = (
+        e as CustomEvent<{ deviceId: string; settings: Record<string, unknown> }>
+      ).detail;
       if (settings?.theme) setKioskTheme(settings.theme as "dark" | "light");
       void qc.invalidateQueries({ queryKey: ["menus-kiosk"] });
       void qc.invalidateQueries({ queryKey: ["queues-kiosk"] });
@@ -117,7 +157,9 @@ function KioskPage() {
       try {
         const s = JSON.parse(e.newValue) as { theme?: string };
         if (s.theme) setKioskTheme(s.theme as "dark" | "light");
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => {
@@ -150,38 +192,59 @@ function KioskPage() {
 
   const { data: waitingTickets = [] } = useQuery({
     queryKey: ["tickets-waiting-kiosk", branchId],
-    queryFn: () => queuesApi.listTickets({ branch_id: branchId, status: "WAITING", limit: "200" }).then((r) => r.data),
+    queryFn: () =>
+      queuesApi
+        .listTickets({ branch_id: branchId, status: "WAITING", limit: "200" })
+        .then((r) => r.data),
     enabled: !!branchId,
     refetchInterval: 15_000,
   });
 
   const waitingCountByGroup = new Map<string, number>();
   (waitingTickets as Ticket[]).forEach((tk) => {
-    waitingCountByGroup.set(tk.queue_group_id, (waitingCountByGroup.get(tk.queue_group_id) ?? 0) + 1);
+    waitingCountByGroup.set(
+      tk.queue_group_id,
+      (waitingCountByGroup.get(tk.queue_group_id) ?? 0) + 1,
+    );
   });
 
   useRealtime({
-    branchId, enabled: !!branchId,
-    onTicketIssued: () => void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
-    onTicketCalled: () => void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
+    branchId,
+    companyId: branch?.company_id,
+    enabled: !!branchId,
+    onTicketIssued: () =>
+      void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
+    onTicketCalled: () =>
+      void qc.invalidateQueries({ queryKey: ["tickets-waiting-kiosk", branchId] }),
   });
 
   const onlineQueues = (queues as QueueGroup[]).filter((q) => q.is_active);
 
   const issueMutation = useMutation({
     mutationFn: (queueGroupId: string) =>
-      queuesApi.issueTicket({ queue_group_id: queueGroupId, branch_id: branchId }).then((r) => r.data),
+      queuesApi
+        .issueTicket({ queue_group_id: queueGroupId, branch_id: branchId })
+        .then((r) => r.data),
     onSuccess: (ticket) => {
       setIssuedTicket(ticket);
       setCountdown(8);
       const waitCount = waitingCountByGroup.get(ticket.queue_group_id) ?? 0;
-      const estMins = estimateWaitMinutes(waitCount, (ticket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins);
+      const estMins = estimateWaitMinutes(
+        waitCount,
+        (ticket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins,
+      );
       printTicketReceipt({
+        template: (device as any)?.receipt,
         ticketNumber: ticket.ticket_number,
-        queueName: loc(ticket.queue_group as unknown as Record<string, unknown>, "name", lang) || (ticket.queue_group as QueueGroup | undefined)?.name_uz || "Queue",
+        queueName:
+          loc(ticket.queue_group as unknown as Record<string, unknown>, "name", lang) ||
+          (ticket.queue_group as QueueGroup | undefined)?.name_uz ||
+          "Queue",
         position: waitCount + 1,
         estimatedWaitMins: estMins,
-        branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz,
+        branchName:
+          loc(branch as unknown as Record<string, unknown>, "name", lang) ||
+          (branch as { name_uz?: string } | undefined)?.name_uz,
         logoUrl: (branch as any)?.company?.logo_media?.url ?? undefined,
         lang,
       });
@@ -203,17 +266,19 @@ function KioskPage() {
         return c - 1;
       });
     }, 1000);
-    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, [issuedTicket]);
 
   // ── Colors ───────────────────────────────────────────────────────────────
-  const BG          = "#003675";   // Turin blue hsl(212,100%,23%) — main background
-  const HEADER      = "#1a56db";   // lighter bright blue — header bar
-  const CARD_BG     = "#ffffff";   // pure white cards
+  const BG = isDark ? "#07111f" : "#edf3fb"; // Turin blue hsl(212,100%,23%) — main background
+  const HEADER = "#1a56db"; // lighter bright blue — header bar
+  const CARD_BG = "#ffffff"; // pure white cards
   const CARD_BORDER = "rgba(255,255,255,.3)";
-  const CARD_TEXT   = "#003675";   // same blue text on cards
-  const TITLE_COLOR = "#ffffff";   // white title
-  const FOOTER_BG   = "#1a56db";   // same lighter blue — footer bar
+  const CARD_TEXT = "#003675"; // same blue text on cards
+  const TITLE_COLOR = isDark ? "#ffffff" : "#0f172a"; // white title
+  const FOOTER_BG = "#1a56db"; // same lighter blue — footer bar
   const LANG_ACTIVE = "#2563eb";
   const LANG_ACTIVE_TEXT = "#ffffff";
   const LANG_INACTIVE = "transparent";
@@ -221,16 +286,32 @@ function KioskPage() {
 
   // ── Date / time ───────────────────────────────────────────────────────────
   const timeStr = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const dateStr = now.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   // ── No branch ─────────────────────────────────────────────────────────────
   if (!branchId) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#07111f", color: "#f8fafc", fontFamily: "Arial, sans-serif" }}>
+      <div
+        style={{
+          display: "flex",
+          minHeight: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#07111f",
+          color: "#f8fafc",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
           <h1 style={{ fontSize: 24, fontWeight: 900 }}>Kiosk not configured</h1>
-          <p style={{ marginTop: 12, color: "#64748b" }}>Open with a branch ID: /kiosk?branch=...</p>
+          <p style={{ marginTop: 12, color: "#64748b" }}>
+            Open with a branch ID: /kiosk?branch=...
+          </p>
         </div>
       </div>
     );
@@ -238,54 +319,232 @@ function KioskPage() {
 
   // ── Ticket issued screen ───────────────────────────────────────────────────
   if (issuedTicket) {
+    const ticketPage = design.pages?.ticket;
+    if (ticketPage?.blocks.length)
+      return (
+        <div style={{ containerType: "inline-size" }}>
+          <CanvasView
+            page={ticketPage}
+            variables={{
+              ticket_number: issuedTicket.ticket_number,
+              branch_name: loc(branch as any, "name", lang),
+              time: timeStr,
+            }}
+          />
+          <Button
+            onClick={() => {
+              setIssuedTicket(null);
+              setMenuStack([]);
+            }}
+          >
+            {t("issueAnother")} ({countdown})
+          </Button>
+        </div>
+      );
     const waitCount = waitingCountByGroup.get(issuedTicket.queue_group_id) ?? 0;
-    const estMins = estimateWaitMinutes(waitCount, (issuedTicket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins);
+    const estMins = estimateWaitMinutes(
+      waitCount,
+      (issuedTicket.queue_group as QueueGroup | undefined)?.service?.estimated_time_mins,
+    );
     return (
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: BG, color: TITLE_COLOR, fontFamily: "Arial, Helvetica, sans-serif" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+          background: BG,
+          color: TITLE_COLOR,
+          fontFamily: "Arial, Helvetica, sans-serif",
+        }}
+      >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "14px 24px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: HEADER,
+            padding: "14px 24px",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img src="/logo.png" alt="logo" style={{ height: 44, objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <img
+              src="/logo.png"
+              alt="logo"
+              style={{ height: 44, objectFit: "contain" }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
           </div>
-          <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              background: "rgba(255,255,255,.08)",
+              borderRadius: 999,
+              padding: 4,
+            }}
+          >
             {LANGS.map((l) => (
-              <button key={l.code} onClick={() => setLang(l.code)} style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "6px 14px", background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE, color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT, fontWeight: 900, fontSize: 13 }}>
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                style={{
+                  border: "none",
+                  cursor: "pointer",
+                  borderRadius: 999,
+                  padding: "6px 14px",
+                  background: lang === l.code ? LANG_ACTIVE : LANG_INACTIVE,
+                  color: lang === l.code ? LANG_ACTIVE_TEXT : LANG_INACTIVE_TEXT,
+                  fontWeight: 900,
+                  fontSize: 13,
+                }}
+              >
                 {l.code.toUpperCase()}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px" }}>
-          <div style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 28, padding: "48px 40px", textAlign: "center", maxWidth: 400, width: "100%" }}>
-            <p style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.2em", color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>{t("yourNumber")}</p>
-            <div style={{ fontSize: 96, fontWeight: 900, lineHeight: 1, color: CARD_TEXT, letterSpacing: 4 }}>{issuedTicket.ticket_number}</div>
-            <p style={{ marginTop: 12, fontSize: 18, color: "#64748b" }}>{loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz}</p>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "32px 24px",
+          }}
+        >
+          <div
+            style={{
+              background: CARD_BG,
+              border: `1px solid ${CARD_BORDER}`,
+              borderRadius: 28,
+              padding: "48px 40px",
+              textAlign: "center",
+              maxWidth: 400,
+              width: "100%",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.2em",
+                color: "#64748b",
+                textTransform: "uppercase",
+                marginBottom: 8,
+              }}
+            >
+              {t("yourNumber")}
+            </p>
+            <div
+              style={{
+                fontSize: 96,
+                fontWeight: 900,
+                lineHeight: 1,
+                color: CARD_TEXT,
+                letterSpacing: 4,
+              }}
+            >
+              {issuedTicket.ticket_number}
+            </div>
+            <p style={{ marginTop: 12, fontSize: 18, color: "#64748b" }}>
+              {loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) ||
+                (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz}
+            </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 24 }}>
-              <div style={{ background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc", borderRadius: 16, padding: 16 }}>
-                <p style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("waitPosition")}</p>
+            <div
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 24 }}
+            >
+              <div
+                style={{
+                  background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc",
+                  borderRadius: 16,
+                  padding: 16,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  {t("waitPosition")}
+                </p>
                 <p style={{ fontSize: 36, fontWeight: 900, marginTop: 4 }}>{waitCount + 1}</p>
               </div>
-              <div style={{ background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc", borderRadius: 16, padding: 16 }}>
-                <p style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("estWaitTime")}</p>
-                <p style={{ fontSize: 36, fontWeight: 900, marginTop: 4 }}>{estMins != null ? `~${estMins}` : "—"}</p>
-                {estMins != null && <p style={{ fontSize: 12, color: "#64748b" }}>{t("minutes")}</p>}
+              <div
+                style={{
+                  background: isDark ? "rgba(255,255,255,.05)" : "#f8fafc",
+                  borderRadius: 16,
+                  padding: 16,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  {t("estWaitTime")}
+                </p>
+                <p style={{ fontSize: 36, fontWeight: 900, marginTop: 4 }}>
+                  {estMins != null ? `~${estMins}` : "—"}
+                </p>
+                {estMins != null && (
+                  <p style={{ fontSize: 12, color: "#64748b" }}>{t("minutes")}</p>
+                )}
               </div>
             </div>
 
-            <Button variant="outline" style={{ marginTop: 24, width: "100%" }}
-              onClick={() => printTicketReceipt({
-                ticketNumber: issuedTicket.ticket_number,
-                queueName: loc(issuedTicket.queue_group as unknown as Record<string, unknown>, "name", lang) || (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz || "Queue",
-                position: waitCount + 1, estimatedWaitMins: estMins,
-                branchName: loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as { name_uz?: string } | undefined)?.name_uz, lang,
-              })}>
+            <Button
+              variant="outline"
+              style={{ marginTop: 24, width: "100%" }}
+              onClick={() =>
+                printTicketReceipt({
+                  template: (device as any)?.receipt,
+                  ticketNumber: issuedTicket.ticket_number,
+                  queueName:
+                    loc(
+                      issuedTicket.queue_group as unknown as Record<string, unknown>,
+                      "name",
+                      lang,
+                    ) ||
+                    (issuedTicket.queue_group as QueueGroup | undefined)?.name_uz ||
+                    "Queue",
+                  position: waitCount + 1,
+                  estimatedWaitMins: estMins,
+                  branchName:
+                    loc(branch as unknown as Record<string, unknown>, "name", lang) ||
+                    (branch as { name_uz?: string } | undefined)?.name_uz,
+                  lang,
+                })
+              }
+            >
               <Printer style={{ width: 16, height: 16, marginRight: 8 }} /> {t("printTicket")}
             </Button>
 
-            <button onClick={() => { setIssuedTicket(null); setMenuStack([]); }}
-              style={{ marginTop: 16, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14 }}>
+            <button
+              onClick={() => {
+                setIssuedTicket(null);
+                setMenuStack([]);
+              }}
+              style={{
+                marginTop: 16,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#64748b",
+                fontSize: 14,
+              }}
+            >
               {t("thanks")} — {t("issueAnother")} ({countdown}s)
             </button>
           </div>
@@ -293,8 +552,17 @@ function KioskPage() {
 
         {/* Footer */}
         <div style={{ padding: "0 16px 16px" }}>
-          <div style={{ background: FOOTER_BG, padding: "18px 32px", textAlign: "center", borderRadius: 16 }}>
-            <span style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: 2 }}>{dateStr} {timeStr}</span>
+          <div
+            style={{
+              background: FOOTER_BG,
+              padding: "18px 32px",
+              textAlign: "center",
+              borderRadius: 16,
+            }}
+          >
+            <span style={{ fontSize: 28, fontWeight: 900, color: "#f8fafc", letterSpacing: 2 }}>
+              {dateStr} {timeStr}
+            </span>
           </div>
         </div>
       </div>
@@ -303,35 +571,116 @@ function KioskPage() {
 
   // ── Menu items ─────────────────────────────────────────────────────────────
   const hasMenus = menus.filter((m) => m.is_visible).length > 0;
-  const currentMenuParent = menuStack.length > 0 ? menuStack[menuStack.length - 1] : null;
+  const currentMenuParent =
+    menuStack.length > 0 ? findMenuById(menus as Menu[], menuStack[menuStack.length - 1].id) : null;
   const currentItems: Menu[] = hasMenus
     ? currentMenuParent
       ? ((currentMenuParent as any).children ?? []).filter((m: Menu) => m.is_visible)
-      : menus.filter((m) => m.is_visible && (m.parent_id ?? null) === null)
+      : menus.filter(
+          (m) =>
+            m.is_visible &&
+            (m.parent_id ?? null) === null &&
+            (!design.menu_id || m.id === design.menu_id),
+        )
     : [];
 
+  const page = design.pages?.[currentMenuParent?.id || "home"];
+  if (page?.blocks.length)
+    return (
+      <div style={{ containerType: "inline-size" }}>
+        <div className="flex gap-3 p-3">
+          <Button onClick={() => setMenuStack((s) => s.slice(0, -1))}>
+            {lang === "ru" ? "Назад" : lang === "uz" ? "Orqaga" : "Back"}
+          </Button>
+          {LANGS.map((l) => (
+            <Button
+              key={l.code}
+              variant={lang === l.code ? "default" : "outline"}
+              onClick={() => setLang(l.code)}
+            >
+              {l.code.toUpperCase()}
+            </Button>
+          ))}
+        </div>
+        <CanvasView
+          page={page}
+          variables={{ branch_name: loc(branch as any, "name", lang), time: timeStr }}
+          slots={{
+            services: (
+              <div className="grid grid-cols-2 gap-3 p-2">
+                {(hasMenus ? currentItems : onlineQueues).map((item: any) => (
+                  <Button
+                    className="h-auto min-h-20 whitespace-normal text-xl"
+                    key={item.id}
+                    disabled={issueMutation.isPending}
+                    onClick={() => {
+                      if (!hasMenus || item.queue_group_id)
+                        issueMutation.mutate(hasMenus ? item.queue_group_id : item.id);
+                      else setMenuStack((s) => [...s, item]);
+                    }}
+                  >
+                    {loc(item, "name", lang) || item.name}
+                  </Button>
+                ))}
+              </div>
+            ),
+          }}
+        />
+      </div>
+    );
+
   const titleText = currentMenuParent
-    ? (loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang) || loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang) || currentMenuParent.label || currentMenuParent.name)
-    : lang === "uz" ? "Yo'nalishni tanlang" : lang === "ru" ? "Выберите направление" : "Select Direction";
+    ? loc(currentMenuParent as unknown as Record<string, unknown>, "name", lang) ||
+      loc(currentMenuParent as unknown as Record<string, unknown>, "label", lang) ||
+      currentMenuParent.label ||
+      currentMenuParent.name
+    : lang === "uz"
+      ? "Yo'nalishni tanlang"
+      : lang === "ru"
+        ? "Выберите направление"
+        : "Select Direction";
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: BG, fontFamily: "Arial, Helvetica, sans-serif", color: TITLE_COLOR, overflow: "hidden" }}>
-
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        background: BG,
+        fontFamily: "Arial, Helvetica, sans-serif",
+        color: TITLE_COLOR,
+        overflow: "hidden",
+      }}
+    >
       {/* ── HEADER ── */}
       <div style={{ padding: "2vh 2vw 0", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: HEADER, padding: "1.5vh 2vw", borderRadius: "1.5vw" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: HEADER,
+            padding: "1.5vh 2vw",
+            borderRadius: "1.5vw",
+          }}
+        >
           {/* Logo or back button */}
           {menuStack.length > 0 ? (
             <button
               onClick={() => setMenuStack((s) => s.slice(0, -1))}
               style={{
-                border: "none", cursor: "pointer",
+                border: "none",
+                cursor: "pointer",
                 background: "rgba(0,0,0,.2)",
                 borderRadius: 999,
-                color: "#ffffff", padding: "0.6vh 1.5vw",
-                fontSize: "clamp(14px, 1.8vw, 28px)", fontWeight: 800,
-                display: "flex", alignItems: "center", gap: "0.5vw",
+                color: "#ffffff",
+                padding: "0.6vh 1.5vw",
+                fontSize: "clamp(14px, 1.8vw, 28px)",
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5vw",
               }}
             >
               <span style={{ fontSize: "clamp(18px, 2.2vw, 34px)", lineHeight: 1 }}>‹</span>
@@ -339,22 +688,43 @@ function KioskPage() {
             </button>
           ) : (
             <div style={{ display: "flex", alignItems: "center" }}>
-              <img src="/Logo Uzb Vertical (white).png" alt="Turin Politexnika Universiteti"
+              <img
+                src="/Logo Uzb Vertical (white).png"
+                alt="Turin Politexnika Universiteti"
                 style={{ height: "clamp(48px, 7vh, 90px)", width: "auto", objectFit: "contain" }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
             </div>
           )}
 
           {/* Language switcher */}
-          <div style={{ display: "flex", gap: "0.4vw", alignItems: "center", background: "rgba(0,0,0,.2)", borderRadius: 999, padding: "0.4vh" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.4vw",
+              alignItems: "center",
+              background: "rgba(0,0,0,.2)",
+              borderRadius: 999,
+              padding: "0.4vh",
+            }}
+          >
             {LANGS.map((l) => (
-              <button key={l.code} onClick={() => setLang(l.code)} style={{
-                border: "none", cursor: "pointer", borderRadius: 999,
-                padding: "0.6vh 1.4vw",
-                background: lang === l.code ? "#ffffff" : "transparent",
-                color: lang === l.code ? "#003675" : "rgba(255,255,255,.7)",
-                fontWeight: 800, fontSize: "clamp(13px, 1.6vw, 24px)",
-              }}>
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                style={{
+                  border: "none",
+                  cursor: "pointer",
+                  borderRadius: 999,
+                  padding: "0.6vh 1.4vw",
+                  background: lang === l.code ? "#ffffff" : "transparent",
+                  color: lang === l.code ? "#003675" : "rgba(255,255,255,.7)",
+                  fontWeight: 800,
+                  fontSize: "clamp(13px, 1.6vw, 24px)",
+                }}
+              >
                 {l.code.toUpperCase()}
               </button>
             ))}
@@ -364,37 +734,68 @@ function KioskPage() {
 
       {/* ── TITLE ── */}
       <div style={{ textAlign: "center", padding: "3vh 2vw 1.5vh", flexShrink: 0 }}>
-        <h1 style={{ fontSize: "clamp(24px, 4vw, 56px)", fontWeight: 700, letterSpacing: 0, color: TITLE_COLOR, margin: 0, textTransform: "uppercase", fontFamily: "Arial, Helvetica, sans-serif" }}>
+        <h1
+          style={{
+            fontSize: "clamp(24px, 4vw, 56px)",
+            fontWeight: 700,
+            letterSpacing: 0,
+            color: TITLE_COLOR,
+            margin: 0,
+            textTransform: "uppercase",
+            fontFamily: "Arial, Helvetica, sans-serif",
+          }}
+        >
           {titleText}
         </h1>
         {currentMenuParent && (
-          <p style={{ margin: "1vh 0 0", fontSize: "clamp(16px, 2vw, 30px)", color: "rgba(255,255,255,.8)", fontWeight: 600 }}>
-            {lang === "uz" ? "Xizmatni tanlang" : lang === "ru" ? "Выберите услугу" : "Select a service"}
+          <p
+            style={{
+              margin: "1vh 0 0",
+              fontSize: "clamp(16px, 2vw, 30px)",
+              color: "rgba(255,255,255,.8)",
+              fontWeight: 600,
+            }}
+          >
+            {lang === "uz"
+              ? "Xizmatni tanlang"
+              : lang === "ru"
+                ? "Выберите услугу"
+                : "Select a service"}
           </p>
         )}
       </div>
 
       {/* ── CARDS GRID ── */}
       <div style={{ flex: 1, padding: "0 2vw 2vh", overflowY: "auto" }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "clamp(12px, 1.5vw, 24px)",
-          maxWidth: 1000,
-          margin: "0 auto",
-          height: "100%",
-          alignContent: "start",
-        }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "clamp(12px, 1.5vw, 24px)",
+            maxWidth: 1000,
+            margin: "0 auto",
+            height: "100%",
+            alignContent: "start",
+          }}
+        >
           {(hasMenus ? currentItems : (onlineQueues as any[])).map((item: any) => {
             const isLeaf = hasMenus ? !!item.queue_group_id : true;
-            const queue = hasMenus && isLeaf ? onlineQueues.find((q) => q.id === item.queue_group_id) : (hasMenus ? null : item);
+            const queue =
+              hasMenus && isLeaf
+                ? onlineQueues.find((q) => q.id === item.queue_group_id)
+                : hasMenus
+                  ? null
+                  : item;
             const queueGroupId = hasMenus ? item.queue_group_id : item.id;
             const waitCount = queue ? (waitingCountByGroup.get(queue.id) ?? 0) : 0;
 
             const itemName = hasMenus
-              ? (isLeaf && queue
-                ? (loc(queue as unknown as Record<string, unknown>, "name", lang) || queue.name_uz)
-                : (loc(item as unknown as Record<string, unknown>, "name", lang) || loc(item as unknown as Record<string, unknown>, "label", lang) || item.label || item.name))
+              ? isLeaf && queue
+                ? loc(queue as unknown as Record<string, unknown>, "name", lang) || queue.name_uz
+                : loc(item as unknown as Record<string, unknown>, "name", lang) ||
+                  loc(item as unknown as Record<string, unknown>, "label", lang) ||
+                  item.label ||
+                  item.name
               : loc(item as unknown as Record<string, unknown>, "name", lang) || item.name_uz;
 
             return (
@@ -429,12 +830,23 @@ function KioskPage() {
                   minHeight: "clamp(80px, 12vh, 160px)",
                   opacity: issueMutation.isPending ? 0.6 : 1,
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.02)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.02)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                }}
               >
                 <span>{itemName}</span>
                 {(isLeaf || !hasMenus) && waitCount > 0 && (
-                  <span style={{ marginTop: "0.8vh", fontSize: "clamp(12px, 1.4vw, 22px)", fontWeight: 600, color: "#1a56db" }}>
+                  <span
+                    style={{
+                      marginTop: "0.8vh",
+                      fontSize: "clamp(12px, 1.4vw, 22px)",
+                      fontWeight: 600,
+                      color: "#1a56db",
+                    }}
+                  >
                     {waitCount} {lang === "uz" ? "kutmoqda" : lang === "ru" ? "ожидают" : "waiting"}
                   </span>
                 )}
@@ -443,12 +855,32 @@ function KioskPage() {
           })}
 
           {hasMenus && currentItems.length === 0 && (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: "clamp(16px, 2vw, 28px)" }}>
-              {lang === "uz" ? "Bu bo'limda xizmat yo'q" : lang === "ru" ? "В этом разделе нет услуг" : "No services in this section"}
+            <div
+              style={{
+                gridColumn: "1/-1",
+                textAlign: "center",
+                padding: 40,
+                color: "#64748b",
+                fontSize: "clamp(16px, 2vw, 28px)",
+              }}
+            >
+              {lang === "uz"
+                ? "Bu bo'limda xizmat yo'q"
+                : lang === "ru"
+                  ? "В этом разделе нет услуг"
+                  : "No services in this section"}
             </div>
           )}
           {!hasMenus && onlineQueues.length === 0 && (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "#64748b", fontSize: "clamp(16px, 2vw, 28px)" }}>
+            <div
+              style={{
+                gridColumn: "1/-1",
+                textAlign: "center",
+                padding: 40,
+                color: "#64748b",
+                fontSize: "clamp(16px, 2vw, 28px)",
+              }}
+            >
               {t("noQueues")}
             </div>
           )}
@@ -457,8 +889,23 @@ function KioskPage() {
 
       {/* ── FOOTER — date/time ── */}
       <div style={{ padding: "0 2vw 2vh", flexShrink: 0 }}>
-        <div style={{ background: FOOTER_BG, padding: "1.8vh 3vw", textAlign: "center", borderRadius: "1.5vw" }}>
-          <span style={{ fontSize: "clamp(24px, 3.5vw, 52px)", fontWeight: 900, color: "#f8fafc", letterSpacing: 3, fontVariantNumeric: "tabular-nums" }}>
+        <div
+          style={{
+            background: FOOTER_BG,
+            padding: "1.8vh 3vw",
+            textAlign: "center",
+            borderRadius: "1.5vw",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "clamp(24px, 3.5vw, 52px)",
+              fontWeight: 900,
+              color: "#f8fafc",
+              letterSpacing: 3,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {dateStr} {timeStr}
           </span>
         </div>

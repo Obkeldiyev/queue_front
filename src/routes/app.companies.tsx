@@ -6,19 +6,33 @@ import { companiesApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import {
-  Plus, Trash2, Building2, LogOut, Shield, MoreVertical, GitBranch, Users, Cpu,
+  Plus,
+  Trash2,
+  Building2,
+  LogOut,
+  Shield,
+  MoreVertical,
+  GitBranch,
+  Users,
+  Cpu,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLang as useLangInner, LANGS } from "@/lib/i18n";
@@ -41,10 +55,18 @@ function SuperAdminCompanies() {
   const { t, lang, setLang } = useLang();
   const qc = useQueryClient();
 
+  const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: "", slug: "", phone: "", email: "", address: "",
-    admin_first_name: "", admin_last_name: "", admin_email: "", admin_password: "",
+    name: "",
+    slug: "",
+    phone: "",
+    email: "",
+    address: "",
+    admin_first_name: "",
+    admin_last_name: "",
+    admin_email: "",
+    admin_password: "",
   });
 
   // Load all companies (super admin sees all)
@@ -56,13 +78,20 @@ function SuperAdminCompanies() {
   const createMutation = useMutation({
     mutationFn: async () => {
       // 1. Create company
-      const comp = await companiesApi.create({
-        name: form.name,
-        slug: form.slug || form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
-        phone: form.phone || undefined,
-        email: form.email || undefined,
-        address: form.address || undefined,
-      }).then((r) => r.data);
+      const comp = await companiesApi
+        .create({
+          name: form.name,
+          slug:
+            form.slug ||
+            form.name
+              .toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(/[^a-z0-9-]/g, ""),
+          phone: form.phone || undefined,
+          email: form.email || undefined,
+          address: form.address || undefined,
+        })
+        .then((r) => r.data);
 
       // 2. Create company admin user via employees API
       if (form.admin_email && form.admin_password) {
@@ -83,7 +112,17 @@ function SuperAdminCompanies() {
     onSuccess: () => {
       toast.success("Company created with admin account");
       setOpen(false);
-      setForm({ name: "", slug: "", phone: "", email: "", address: "", admin_first_name: "", admin_last_name: "", admin_email: "", admin_password: "" });
+      setForm({
+        name: "",
+        slug: "",
+        phone: "",
+        email: "",
+        address: "",
+        admin_first_name: "",
+        admin_last_name: "",
+        admin_email: "",
+        admin_password: "",
+      });
       void qc.invalidateQueries({ queryKey: ["companies-all"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error creating company"),
@@ -104,10 +143,10 @@ function SuperAdminCompanies() {
   };
 
   const STATUS_COLOR: Record<string, string> = {
-    ACTIVE:   "border-green-300 text-green-700",
-    TRIAL:    "border-amber-300 text-amber-700",
+    ACTIVE: "border-green-300 text-green-700",
+    TRIAL: "border-amber-300 text-amber-700",
     INACTIVE: "border-slate-300 text-slate-400",
-    SUSPENDED:"border-red-300 text-red-700",
+    SUSPENDED: "border-red-300 text-red-700",
   };
 
   return (
@@ -130,7 +169,9 @@ function SuperAdminCompanies() {
                 key={l.code}
                 onClick={() => setLang(l.code)}
                 className={`rounded px-2 py-1 text-xs font-medium transition ${
-                  lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  lang === l.code
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 {l.code.toUpperCase()}
@@ -140,10 +181,17 @@ function SuperAdminCompanies() {
 
           <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
             <Shield className="h-4 w-4 text-amber-600" />
-            <span className="text-xs font-medium">{user?.first_name} {user?.last_name}</span>
+            <span className="text-xs font-medium">
+              {user?.first_name} {user?.last_name}
+            </span>
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => void handleLogout()} className="gap-1.5 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleLogout()}
+            className="gap-1.5 text-muted-foreground"
+          >
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">{t("logout")}</span>
           </Button>
@@ -172,25 +220,48 @@ function SuperAdminCompanies() {
               <div className="space-y-4">
                 {/* Company details */}
                 <div className="rounded-lg bg-muted/50 p-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company details</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Company details
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label>Name *</Label>
-                      <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ABC Bank" className="mt-1" />
+                      <Input
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        placeholder="ABC Bank"
+                        className="mt-1"
+                      />
                     </div>
                     <div>
-                      <Label>Slug <span className="text-muted-foreground text-xs">(URL key)</span></Label>
-                      <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="abc-bank" className="mt-1" />
+                      <Label>
+                        Slug <span className="text-muted-foreground text-xs">(URL key)</span>
+                      </Label>
+                      <Input
+                        value={form.slug}
+                        onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                        placeholder="abc-bank"
+                        className="mt-1"
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label>Phone</Label>
-                      <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1" />
+                      <Input
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label>Email</Label>
-                      <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1" />
+                      <Input
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        className="mt-1"
+                      />
                     </div>
                   </div>
                 </div>
@@ -203,25 +274,47 @@ function SuperAdminCompanies() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label>First name</Label>
-                      <Input value={form.admin_first_name} onChange={(e) => setForm({ ...form, admin_first_name: e.target.value })} className="mt-1" />
+                      <Input
+                        value={form.admin_first_name}
+                        onChange={(e) => setForm({ ...form, admin_first_name: e.target.value })}
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <Label>Last name</Label>
-                      <Input value={form.admin_last_name} onChange={(e) => setForm({ ...form, admin_last_name: e.target.value })} className="mt-1" />
+                      <Input
+                        value={form.admin_last_name}
+                        onChange={(e) => setForm({ ...form, admin_last_name: e.target.value })}
+                        className="mt-1"
+                      />
                     </div>
                   </div>
                   <div>
                     <Label>Admin email</Label>
-                    <Input type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} className="mt-1" placeholder="admin@company.com" />
+                    <Input
+                      type="email"
+                      value={form.admin_email}
+                      onChange={(e) => setForm({ ...form, admin_email: e.target.value })}
+                      className="mt-1"
+                      placeholder="admin@company.com"
+                    />
                   </div>
                   <div>
                     <Label>Admin password</Label>
-                    <Input type="password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} className="mt-1" placeholder="Min 8 characters" />
+                    <Input
+                      type="password"
+                      value={form.admin_password}
+                      onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
+                      className="mt-1"
+                      placeholder="Min 8 characters"
+                    />
                   </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
                 <Button
                   onClick={() => createMutation.mutate()}
                   disabled={!form.name || createMutation.isPending}
@@ -236,10 +329,22 @@ function SuperAdminCompanies() {
         {/* Stats */}
         <div className="mb-6 grid grid-cols-3 gap-3 sm:grid-cols-4">
           {[
-            { label: "Total companies", value: companies.length },
-            { label: "Active",   value: companies.filter((c) => c.status === "ACTIVE").length },
-            { label: "Trial",    value: companies.filter((c) => c.status === "TRIAL").length },
-            { label: "Suspended",value: companies.filter((c) => c.status === "SUSPENDED").length },
+            { label: t("companies"), value: companies.length },
+            {
+              label: t("branches"),
+              value: companies.reduce((n, c) => n + (c._count?.branches || 0), 0),
+            },
+            {
+              label: t("employees"),
+              value: companies.reduce((n, c) => n + (c._count?.users || 0), 0),
+            },
+            {
+              label: t("devices"),
+              value: companies.reduce((n, c) => n + (c._count?.devices || 0), 0),
+            },
+            { label: "Active", value: companies.filter((c) => c.status === "ACTIVE").length },
+            { label: "Trial", value: companies.filter((c) => c.status === "TRIAL").length },
+            { label: "Suspended", value: companies.filter((c) => c.status === "SUSPENDED").length },
           ].map(({ label, value }) => (
             <div key={label} className="rounded-xl border bg-card p-4 text-center">
               <p className="text-2xl font-black">{value}</p>
@@ -248,6 +353,18 @@ function SuperAdminCompanies() {
           ))}
         </div>
 
+        <Input
+          className="mb-5 max-w-lg h-12"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={
+            lang === "ru"
+              ? "Поиск компаний по названию или адресу"
+              : lang === "uz"
+                ? "Kompaniyalarni qidirish"
+                : "Search companies by name, slug or email"
+          }
+        />
         {/* Company grid */}
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -263,75 +380,80 @@ function SuperAdminCompanies() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {companies.map((c) => (
-              <Card key={c.id} className="relative">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                        {c.name[0]?.toUpperCase()}
+            {companies
+              .filter((c) =>
+                `${c.name} ${c.slug} ${c.email || ""}`.toLowerCase().includes(search.toLowerCase()),
+              )
+              .map((c) => (
+                <Card key={c.id} className="relative">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-base">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+                          {c.name[0]?.toUpperCase()}
+                        </div>
+                        <span className="truncate">{c.name}</span>
                       </div>
-                      <span className="truncate">{c.name}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Delete "${c.name}" and all its data? This cannot be undone.`,
+                                )
+                              ) {
+                                deleteMutation.mutate(c.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete company
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${STATUS_COLOR[c.status] ?? "border-slate-300 text-slate-400"}`}
+                      >
+                        {c.status}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground font-mono">{c.slug}</span>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => {
-                            if (confirm(`Delete "${c.name}" and all its data? This cannot be undone.`)) {
-                              deleteMutation.mutate(c.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete company
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${STATUS_COLOR[c.status] ?? "border-slate-300 text-slate-400"}`}
-                    >
-                      {c.status}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground font-mono">{c.slug}</span>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    {[
-                      { icon: GitBranch, label: "Branches", val: c._count?.branches ?? 0 },
-                      { icon: Users,     label: "Users",    val: c._count?.users    ?? 0 },
-                      { icon: Cpu,       label: "Devices",  val: c._count?.devices  ?? 0 },
-                    ].map(({ icon: Icon, label, val }) => (
-                      <div key={label} className="rounded-lg bg-muted/50 p-2">
-                        <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-muted-foreground" />
-                        <p className="font-bold">{val}</p>
-                        <p className="text-muted-foreground">{label}</p>
-                      </div>
-                    ))}
-                  </div>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      {[
+                        { icon: GitBranch, label: "Branches", val: c._count?.branches ?? 0 },
+                        { icon: Users, label: "Users", val: c._count?.users ?? 0 },
+                        { icon: Cpu, label: "Devices", val: c._count?.devices ?? 0 },
+                      ].map(({ icon: Icon, label, val }) => (
+                        <div key={label} className="rounded-lg bg-muted/50 p-2">
+                          <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="font-bold">{val}</p>
+                          <p className="text-muted-foreground">{label}</p>
+                        </div>
+                      ))}
+                    </div>
 
-                  {c.email && (
-                    <p className="text-xs text-muted-foreground truncate">{c.email}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Created: {new Date(c.created_at).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+                    {c.email && <p className="text-xs text-muted-foreground truncate">{c.email}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      Created: {new Date(c.created_at).toLocaleDateString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         )}
       </main>
     </div>
   );
 }
-

@@ -19,19 +19,26 @@ export default defineConfig({
     server: {
       host: "0.0.0.0",
       port: 8080,
-      origin: "https://xnavbat.polito.uz",
+      ...(process.env.PUBLIC_DEV_ORIGIN ? { origin: process.env.PUBLIC_DEV_ORIGIN } : {}),
       // Allow Vite dev server to accept requests proxied for this hostname.
       allowedHosts: ["xnavbat.polito.uz", "localhost", "127.0.0.1"],
-      hmr: {
-        host: "xnavbat.polito.uz",
-        protocol: "wss",
-      },
+      ...(process.env.PUBLIC_DEV_ORIGIN
+        ? {
+            hmr: {
+              host: new URL(process.env.PUBLIC_DEV_ORIGIN).hostname,
+              protocol:
+                new URL(process.env.PUBLIC_DEV_ORIGIN).protocol === "https:"
+                  ? ("wss" as const)
+                  : ("ws" as const),
+            },
+          }
+        : {}),
       proxy: {
         // Local development proxy for the backend API.
         "/api": {
           target: `http://${backendHost}`,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, "/api/v1"),
+          rewrite: (path) => path.replace(/^\/api(?!\/v1)/, "/api/v1"),
         },
         "/ws": {
           target: `ws://${backendHost}`,

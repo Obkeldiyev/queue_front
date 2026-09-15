@@ -1,129 +1,303 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { requireCompanyAdmin } from "@/lib/guards";
-import { useQuery } from "@tanstack/react-query";
-import { useAuthStore } from "@/lib/auth-store";
 import { useStore } from "@/lib/store";
 import { useLang } from "@/lib/i18n";
-import { auditApi, type AuditLog } from "@/lib/api";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMemo } from "react";
+import { api, auditApi } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { OperationsPanel } from "@/components/qms/OperationsPanel";
 import { formatDuration } from "@/lib/queue-helpers";
-import { Clock, Users } from "lucide-react";
-
-export const Route = createFileRoute("/app/audit")({ beforeLoad: requireCompanyAdmin, component: Audit });
-
-function calcWorkedSeconds(logs: AuditLog[]): number {
-  let total = 0; let openAt: number | null = null;
-  [...logs].reverse().forEach((log) => {
-    if (log.action === "OPEN_SESSION" || log.action === "counter:session_opened") { openAt = new Date(log.created_at).getTime(); }
-    else if ((log.action === "CLOSE_SESSION" || log.action === "counter:session_closed") && openAt !== null) { total += (new Date(log.created_at).getTime() - openAt) / 1000; openAt = null; }
-  });
-  if (openAt !== null) total += (Date.now() - openAt) / 1000;
-  return Math.round(total);
-}
-
-const ACTION_COLOR: Record<string, string> = {
-  CREATE: "border-green-300 text-green-700", UPDATE: "border-blue-300 text-blue-700",
-  DELETE: "border-red-300 text-red-700", LOGIN: "border-purple-300 text-purple-700",
-  LOGOUT: "border-slate-300 text-slate-500",
-  OPEN_SESSION: "border-green-300 text-green-700 bg-green-50", "counter:session_opened": "border-green-300 text-green-700 bg-green-50",
-  CLOSE_SESSION: "border-slate-300 text-slate-600", "counter:session_closed": "border-slate-300 text-slate-600",
-  CALL_NEXT: "border-amber-300 text-amber-700", "ticket:called": "border-amber-300 text-amber-700",
-  COMPLETE_SERVICE: "border-green-300 text-green-700", "ticket:completed": "border-green-300 text-green-700",
-};
-
+import { toast } from "sonner";
+export const Route = createFileRoute("/app/audit")({
+  beforeLoad: requireCompanyAdmin,
+  component: Audit,
+});
 function Audit() {
-  const { user } = useAuthStore();
-  const { currentCompanyId } = useStore();
-  const { t } = useLang();
-  const companyId = user?.company_id ?? currentCompanyId;
-
-  const { data: logs = [], isLoading } = useQuery({
-    queryKey: ["audit-logs", companyId],
-    queryFn: () => auditApi.list({ ...(companyId && { company_id: companyId }), limit: "500" }).then((r) => r.data),
-    enabled: !!companyId,
-    refetchInterval: 30_000,
+  const { lang, t } = useLang();
+  const L = (en: string, ru: string, uz: string) => (lang === "ru" ? ru : lang === "uz" ? uz : en);
+  const qc = useQueryClient();
+  const { currentBranchId } = useStore();
+  const [page, setPage] = useState(1);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [filter, setFilter] = useState("");
+  const params = {
+    page: String(page),
+    limit: "25",
+    ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
+    ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
+    ...(filter ? { action: filter } : {}),
+  };
+  const {
+    data: result,
+    isFetching,
+    error,
+  } = useQuery({
+    queryKey: ["audit-logs", params],
+    queryFn: () => auditApi.list(params),
+    refetchInterval: 15000,
   });
-
-  const operatorSummary = useMemo(() => {
-    const byActor = new Map<string, { name: string; logs: AuditLog[] }>();
-    (logs as AuditLog[]).forEach((log) => {
-      const actor = log.company_user;
-      if (!actor) return;
-      if (!byActor.has(actor.id)) byActor.set(actor.id, { name: `${actor.first_name} ${actor.last_name}`, logs: [] });
-      byActor.get(actor.id)!.logs.push(log);
-    });
-    return Array.from(byActor.entries()).map(([id, { name, logs: al }]) => ({
-      id, name,
-      workedSeconds: calcWorkedSeconds(al),
-      sessionCount: al.filter((l) => l.action === "OPEN_SESSION" || l.action === "counter:session_opened").length,
-      ticketsServed: al.filter((l) => l.action === "COMPLETE_SERVICE" || l.action === "ticket:completed").length,
-    }));
-  }, [logs]);
-
+  const { data: summary = [], error: summaryError } = useQuery({
+    queryKey: ["operations-summary", from, to],
+    queryFn: () =>
+      api
+        .get<any[]>(`/operations/summary?${new URLSearchParams({ ...params, page: "1" })}`)
+        .then((r) => r.data),
+    refetchInterval: 15000,
+  });
+  const pay = useMutation({
+    mutationFn: ({ id, salary, rate }: { id: string; salary: number; rate: number }) =>
+      api.patch(`/operations/compensation/${id}`, { salary, rate }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["operations-summary"] });
+      toast.success(L("Compensation saved", "Оплата сохранена", "To‘lov saqlandi"));
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const reset = useMutation({
+    mutationFn: () => api.post<any>("/operations/reset", { branch_id: currentBranchId }),
+    onSuccess: (r) => {
+      toast.success(`${r.data.count} ${L("tickets reset", "талонов сброшено", "talon tiklandi")}`);
+      void qc.invalidateQueries();
+    },
+    onError: (e) => toast.error(e.message),
+  });
   return (
-    <div>
-      <div className="mb-6"><h1 className="text-2xl font-bold">{t("auditLog")}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Full activity log. Session durations calculated from open/close pairs.</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {L("Operations & audit", "Контроль и аудит", "Nazorat va audit")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {L(
+              "Actual work sessions, completed services and KPI earnings. Default period: current month.",
+              "Рабочие сессии, завершённые обращения и KPI. Период по умолчанию: текущий месяц.",
+              "Ish seanslari, bajarilgan xizmatlar va KPI. Standart davr: joriy oy.",
+            )}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          disabled={!currentBranchId || reset.isPending}
+          onClick={() => {
+            if (
+              confirm(
+                L(
+                  "Cancel all waiting and active tickets in this branch? History is retained.",
+                  "Отменить все ожидающие и активные талоны филиала? История сохранится.",
+                  "Filialdagi kutilayotgan va faol talonlar bekor qilinsinmi? Tarix saqlanadi.",
+                ),
+              )
+            )
+              reset.mutate();
+          }}
+        >
+          {L("Reset branch queue", "Сбросить очередь филиала", "Filial navbatini tiklash")}
+        </Button>
       </div>
-
-      {operatorSummary.length > 0 && (
-        <div className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            <Users className="h-4 w-4" /> {t("workedTime")} by operator
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {operatorSummary.map((op) => (
-              <Card key={op.id}>
-                <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">{op.name}</CardTitle></CardHeader>
-                <CardContent className="space-y-1.5 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span className="font-mono font-bold text-foreground">{formatDuration(op.workedSeconds)}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{op.sessionCount} {t("sessionsCount").toLowerCase()}</span>
-                    <span>·</span>
-                    <span>{op.ticketsServed} {t("ticketsServed").toLowerCase()}</span>
-                  </div>
-                </CardContent>
-              </Card>
+      <div className="flex flex-wrap items-end gap-3">
+        <label>
+          {L("From", "С", "Dan")}
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+        </label>
+        <label>
+          {L("To", "По", "Gacha")}
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(1);
+            }}
+          />
+        </label>
+        <select
+          className="rounded border bg-background p-2"
+          aria-label="Action"
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">{L("All actions", "Все действия", "Barcha harakatlar")}</option>
+          {[
+            "CREATE",
+            "UPDATE",
+            "DELETE",
+            "LOGIN",
+            "TOGGLE_STATUS",
+            "CALL_NEXT",
+            "COMPLETE_SERVICE",
+            "TRANSFER",
+          ].map((a) => (
+            <option key={a}>{a}</option>
+          ))}
+        </select>
+      </div>
+      {summaryError && (
+        <p role="alert" className="text-destructive">
+          {summaryError.message}
+        </p>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {summary.map((op) => (
+          <div key={op.id} className="space-y-3 rounded-2xl border bg-card p-5">
+            <div className="flex items-center justify-between">
+              <strong>
+                {op.first_name} {op.last_name}
+              </strong>
+              <span
+                className={`rounded-full px-2 py-1 text-xs ${op.online ? "bg-green-100 text-green-800" : "bg-muted"}`}
+              >
+                {op.online
+                  ? L("Working", "Работает", "Ishlamoqda")
+                  : L("Offline", "Не работает", "Oflayn")}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">{t("ticketsServed")}</p>
+                <strong className="text-3xl">{op.served}</strong>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t("workedTime")}</p>
+                <strong className="text-xl">{formatDuration(op.worked_seconds)}</strong>
+              </div>
+            </div>
+            <p className="text-sm">
+              KPI: <strong>{op.earned_kpi.toLocaleString()}</strong> ·{" "}
+              {L("Salary", "Оклад", "Maosh")}: {op.salary.toLocaleString()}
+            </p>
+            {op.alerts.map((a: string) => (
+              <p key={a} role="status" className="rounded bg-amber-100 p-2 text-sm text-amber-900">
+                {a === "Long open shift"
+                  ? L(
+                      "Shift exceeds the configured maximum",
+                      "Смена дольше установленного лимита",
+                      "Smena belgilangan limitdan oshdi",
+                    )
+                  : L(
+                      "Service duration exceeds target",
+                      "Обслуживание дольше нормы",
+                      "Xizmat vaqti me’yordan oshdi",
+                    )}
+              </p>
             ))}
+            <form
+              className="flex flex-wrap gap-2"
+              key={`${op.id}:${op.salary}:${op.rate}`}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                pay.mutate({
+                  id: op.id,
+                  salary: Number(f.get("salary")),
+                  rate: Number(f.get("rate")),
+                });
+              }}
+            >
+              <label className="text-xs">
+                {L("Monthly salary", "Месячный оклад", "Oylik maosh")}
+                <Input
+                  className="w-28"
+                  name="salary"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={op.salary}
+                />
+              </label>
+              <label className="text-xs">
+                {L("KPI / service", "KPI / обращение", "KPI / xizmat")}
+                <Input
+                  className="w-28"
+                  name="rate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={op.rate}
+                />
+              </label>
+              <Button variant="outline" disabled={pay.isPending}>
+                {t("save")}
+              </Button>
+            </form>
           </div>
-        </div>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error.message}
+        </p>
       )}
-
-      {isLoading ? (
-        <div className="h-48 animate-pulse rounded-xl bg-muted" />
-      ) : (logs as AuditLog[]).length === 0 ? (
-        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">No activity yet.</div>
-      ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Time</TableHead><TableHead>Actor</TableHead><TableHead>Action</TableHead>
-              <TableHead>Entity</TableHead><TableHead>IP</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {(logs as AuditLog[]).map((a) => {
-                const actor = a.company_user ? `${a.company_user.first_name} ${a.company_user.last_name}` : a.platform_user ? `${a.platform_user.first_name} ${a.platform_user.last_name}` : a.actor_type ?? "system";
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-sm font-medium">{actor}</TableCell>
-                    <TableCell><Badge variant="outline" className={`text-xs ${ACTION_COLOR[a.action] ?? "border-slate-200 text-slate-500"}`}>{a.action}</Badge></TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{a.entity_type ?? "—"}{a.entity_id && <span className="ml-1 opacity-50">#{a.entity_id.slice(0, 8)}</span>}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{a.ip_address ?? "—"}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <div className="overflow-x-auto rounded-xl border">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-muted">
+            <tr>
+              {[
+                L("Time", "Время", "Vaqt"),
+                L("Operator", "Оператор", "Operator"),
+                L("Action", "Действие", "Harakat"),
+                L("Entity", "Объект", "Obyekt"),
+              ].map((h) => (
+                <th key={h} className="p-3">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {result?.data.map((log) => (
+              <tr key={log.id} className="border-t">
+                <td className="p-3">
+                  {new Date(log.created_at).toLocaleString(
+                    lang === "ru" ? "ru-RU" : lang === "uz" ? "uz-UZ" : "en-GB",
+                  )}
+                </td>
+                <td className="p-3">
+                  {log.company_user
+                    ? `${log.company_user.first_name} ${log.company_user.last_name}`
+                    : log.actor_type}
+                </td>
+                <td className="p-3">{log.action}</td>
+                <td className="p-3">{log.entity_type}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          disabled={page === 1 || isFetching}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          ← {L("Previous", "Назад", "Oldingi")}
+        </Button>
+        <span>
+          {page} / {Math.max(1, Math.ceil((result?.meta?.total || 0) / 25))} ·{" "}
+          {result?.meta?.total || 0}
+        </span>
+        <Button
+          variant="outline"
+          disabled={isFetching || page * 25 >= (result?.meta?.total || 0)}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          {L("Next", "Далее", "Keyingi")} →
+        </Button>
+      </div>
+      <OperationsPanel admin />
     </div>
   );
 }
-

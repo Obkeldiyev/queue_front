@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queuesApi, countersApi, branchesApi, type Ticket, type Counter, companiesApi } from "@/lib/api";
+import {
+  queuesApi,
+  countersApi,
+  branchesApi,
+  type Ticket,
+  type Counter,
+  companiesApi,
+} from "@/lib/api";
 import { useLang, LANGS, loc } from "@/lib/i18n";
 import { useRealtime } from "@/hooks/use-realtime";
+import { useDeviceSettings } from "@/hooks/use-device-settings";
+import { api } from "@/lib/api";
+import { CanvasView } from "@/components/qms/CanvasDesigner";
 import { useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@/components/ClientOnly";
 
@@ -21,17 +31,26 @@ export const Route = createFileRoute("/display")({
   ),
 });
 
-interface Announced { ticket_number: string; counter_name: string; counter_number?: number }
+interface Announced {
+  ticket_number: string;
+  counter_name: string;
+  counter_number?: number;
+}
 
 function DisplayView() {
   const { lang, setLang } = useLang();
   const qc = useQueryClient();
   const [now, setNow] = useState(new Date());
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const { device, settings: design } = useDeviceSettings(deviceId);
   const [urlBranchId, setUrlBranchId] = useState("");
   const [deviceBranchId, setDeviceBranchId] = useState<string | null>(null);
   const branchId = urlBranchId || deviceBranchId || "";
   const [displayTheme, setDisplayTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    if (device?.branch_id) setDeviceBranchId(device.branch_id);
+    if (design.displayTheme) setDisplayTheme(design.displayTheme === "light" ? "light" : "dark");
+  }, [device?.branch_id, design.displayTheme]);
   const isDark = displayTheme !== "light";
   const [announced, setAnnounced] = useState<Announced | null>(null);
   const announceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,15 +68,18 @@ function DisplayView() {
     if (b) setUrlBranchId(b);
     if (d) {
       setDeviceId(d);
-      if (!b) void (async () => {
-        try {
-          const { devicesApi } = await import("@/lib/api");
-          const dev = await devicesApi.get(d).then((r) => r.data);
-          if (dev?.branch_id) setDeviceBranchId(dev.branch_id);
-          if ((dev?.settings as { displayTheme?: string } | undefined)?.displayTheme)
-            setDisplayTheme((dev!.settings as { displayTheme: "dark" | "light" }).displayTheme);
-        } catch { /* ignore */ }
-      })();
+      if (!b)
+        void (async () => {
+          try {
+            const { devicesApi } = await import("@/lib/api");
+            const dev = await devicesApi.get(d).then((r) => r.data);
+            if (dev?.branch_id) setDeviceBranchId(dev.branch_id);
+            if ((dev?.settings as { displayTheme?: string } | undefined)?.displayTheme)
+              setDisplayTheme((dev!.settings as { displayTheme: "dark" | "light" }).displayTheme);
+          } catch {
+            /* ignore */
+          }
+        })();
     }
 
     void (async () => {
@@ -69,8 +91,13 @@ function DisplayView() {
           const companyId = branch.company_id;
           const raw = localStorage.getItem(`kiosk_settings_${companyId}`);
           if (raw) {
-            const s = JSON.parse(raw) as { displayTheme?: string; theme?: string; settings?: { displayTheme?: string; theme?: string } };
-            const preferred = s.displayTheme ?? s.theme ?? s.settings?.displayTheme ?? s.settings?.theme;
+            const s = JSON.parse(raw) as {
+              displayTheme?: string;
+              theme?: string;
+              settings?: { displayTheme?: string; theme?: string };
+            };
+            const preferred =
+              s.displayTheme ?? s.theme ?? s.settings?.displayTheme ?? s.settings?.theme;
             if (preferred) setDisplayTheme(preferred as "dark" | "light");
           }
           try {
@@ -78,7 +105,9 @@ function DisplayView() {
             const s = comp?.settings as { displayTheme?: string; theme?: string } | undefined;
             const preferred = s?.displayTheme ?? s?.theme;
             if (preferred) setDisplayTheme(preferred as "dark" | "light");
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
 
           const onStorage = (e: StorageEvent) => {
             if (e.key !== `kiosk_settings_${companyId}` || !e.newValue) return;
@@ -86,22 +115,31 @@ function DisplayView() {
               const s2 = JSON.parse(e.newValue) as { displayTheme?: string; theme?: string };
               const t2 = s2.displayTheme ?? s2.theme;
               if (t2) setDisplayTheme(t2 as "dark" | "light");
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           };
           window.addEventListener("storage", onStorage);
-          (window as any).__displayStorageCleanup = () => window.removeEventListener("storage", onStorage);
+          (window as any).__displayStorageCleanup = () =>
+            window.removeEventListener("storage", onStorage);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
 
     return () => {
-      try { (window as any).__displayStorageCleanup?.(); } catch { /* ignore */ }
+      try {
+        (window as any).__displayStorageCleanup?.();
+      } catch {
+        /* ignore */
+      }
     };
   }, []);
 
   const { data: counters = [] } = useQuery({
     queryKey: ["counters-display", branchId],
-    queryFn: () => countersApi.list({ branch_id: branchId }).then((r) => r.data),
+    queryFn: () => api.get<Counter[]>(`/counters/public?branch_id=${branchId}`).then((r) => r.data),
     enabled: !!branchId,
     refetchInterval: 30_000,
   });
@@ -115,22 +153,28 @@ function DisplayView() {
 
   const { data: calledTickets = [] } = useQuery({
     queryKey: ["tickets-display", branchId],
-    queryFn: () => queuesApi.listTickets({ branch_id: branchId, limit: "50" }).then((r) =>
-      r.data.filter((t: Ticket) => ["CALLED", "SERVING"].includes(t.status))
-    ),
+    queryFn: () =>
+      queuesApi
+        .listTickets({ branch_id: branchId, limit: "50" })
+        .then((r) => r.data.filter((t: Ticket) => ["CALLED", "SERVING"].includes(t.status))),
     enabled: !!branchId,
     refetchInterval: 3000,
   });
 
   const { data: waitingTickets = [] } = useQuery({
     queryKey: ["tickets-display-waiting", branchId],
-    queryFn: () => queuesApi.listTickets({ branch_id: branchId, status: "WAITING", limit: "30" }).then((r) => r.data),
+    queryFn: () =>
+      queuesApi
+        .listTickets({ branch_id: branchId, status: "WAITING", limit: "30" })
+        .then((r) => r.data),
     enabled: !!branchId,
     refetchInterval: 4000,
   });
 
   useRealtime({
-    branchId, enabled: !!branchId,
+    branchId,
+    companyId: branch?.company_id,
+    enabled: !!branchId,
     onTicketCalled: (msg) => {
       void qc.invalidateQueries({ queryKey: ["tickets-display", branchId] });
       void qc.invalidateQueries({ queryKey: ["tickets-display-waiting", branchId] });
@@ -139,16 +183,23 @@ function DisplayView() {
       if (num) {
         if (announceTimer.current) clearTimeout(announceTimer.current);
         const c = counters.find((x) => x.name_uz === cname || x.id === msg.payload.counter_id);
-        setAnnounced({ ticket_number: String(num), counter_name: cname, counter_number: c?.number });
+        setAnnounced({
+          ticket_number: String(num),
+          counter_name: cname,
+          counter_number: c?.number,
+        });
         announceTimer.current = setTimeout(() => setAnnounced(null), 6000);
       }
     },
-    onTicketIssued: () => void qc.invalidateQueries({ queryKey: ["tickets-display-waiting", branchId] }),
+    onTicketIssued: () =>
+      void qc.invalidateQueries({ queryKey: ["tickets-display-waiting", branchId] }),
   });
 
   // Map counter_id → ticket for serving rows
   const counterTicketMap = new Map<string, Ticket>();
-  (calledTickets as Ticket[]).forEach((t) => { if (t.counter_id) counterTicketMap.set(t.counter_id, t); });
+  (calledTickets as Ticket[]).forEach((t) => {
+    if (t.counter_id) counterTicketMap.set(t.counter_id, t);
+  });
 
   const getCounter = (id?: string): Counter | undefined =>
     (counters as Counter[]).find((c) => c.id === id);
@@ -171,50 +222,119 @@ function DisplayView() {
   const timeStr = now.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
 
   // Labels
-  const SERVING_LBL = lang === "uz" ? "XIZMAT KO'RSATILMOQDA" : lang === "ru" ? "ОБСЛУЖИВАЕТСЯ" : "NOW SERVING";
+  const SERVING_LBL =
+    lang === "uz" ? "XIZMAT KO'RSATILMOQDA" : lang === "ru" ? "ОБСЛУЖИВАЕТСЯ" : "NOW SERVING";
   const WAITING_LBL = lang === "uz" ? "KUTILMOQDA" : lang === "ru" ? "ОЖИДАНИЕ" : "WAITING";
-  const WINDOW_LBL  = lang === "uz" ? "OYNAGA"    : lang === "ru" ? "КАБИНЕТ"  : "WINDOW";
-  const EMPTY_LBL   = lang === "uz" ? "Hozircha chaqirilgan chipta yo'q" : lang === "ru" ? "Нет вызванных талонов" : "No tickets called yet";
+  const WINDOW_LBL = lang === "uz" ? "OYNAGA" : lang === "ru" ? "КАБИНЕТ" : "WINDOW";
+  const EMPTY_LBL =
+    lang === "uz"
+      ? "Hozircha chaqirilgan chipta yo'q"
+      : lang === "ru"
+        ? "Нет вызванных талонов"
+        : "No tickets called yet";
 
   const branchName = branch
     ? loc(branch as unknown as Record<string, unknown>, "name", lang) || (branch as any).name_uz
     : "Qubit QMS";
 
   const logoUrl = (branch as any)?.company?.logo_media?.url;
+  const page = design.pages?.billboard || design.pages?.home;
+  if (page?.blocks.length)
+    return (
+      <div style={{ containerType: "inline-size" }}>
+        <CanvasView
+          page={page}
+          variables={{ branch_name: branchName, time: timeStr }}
+          slots={{
+            queue: (
+              <div className="space-y-3 p-4">
+                <h2>{SERVING_LBL}</h2>
+                {servingRows.map((t) => (
+                  <div key={t.id} className="flex justify-between rounded-lg border p-3">
+                    <strong>{t.ticket_number}</strong>
+                    <span>{loc(getCounter(t.counter_id) as any, "name", lang)}</span>
+                  </div>
+                ))}
+                <h2>{WAITING_LBL}</h2>
+                <div className="flex flex-wrap gap-4">
+                  {waiting.map((t) => (
+                    <strong key={t.id}>{t.ticket_number}</strong>
+                  ))}
+                </div>
+              </div>
+            ),
+          }}
+        />
+      </div>
+    );
 
   // Theme colours
-  const bg      = isDark ? "#07111f" : "#f1f5f9";
-  const headerBg= isDark ? "#0d1b2f" : "#1e293b";
-  const leftBg  = isDark ? "rgba(241,245,249,0.06)" : "#e0f2fe";
+  const bg = isDark ? "#07111f" : "#f1f5f9";
+  const headerBg = isDark ? "#0d1b2f" : "#1e293b";
+  const leftBg = isDark ? "rgba(241,245,249,0.06)" : "#e0f2fe";
   const leftBorder = isDark ? "rgba(148,163,184,.15)" : "#bae6fd";
   const rightBg = isDark ? "#0d1b2f" : "#1e293b";
-  const ticketBg= isDark ? "#162032" : "#1e3a5f";
-  const windowBg= isDark ? "#0ea5e9" : "#0284c7";
-  const waitGrid= isDark ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.15)";
-  const textMain= isDark ? "#f8fafc" : "#f8fafc";
-  const textLeft= isDark ? "#0f172a" : "#0f172a";
+  const ticketBg = isDark ? "#162032" : "#1e3a5f";
+  const windowBg = isDark ? "#0ea5e9" : "#0284c7";
+  const waitGrid = isDark ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.15)";
+  const textMain = isDark ? "#f8fafc" : "#f8fafc";
+  const textLeft = isDark ? "#0f172a" : "#0f172a";
 
   return (
-    <div style={{ height: "100vh", width: "100vw", overflow: "hidden", background: bg, color: textMain, fontFamily: "Inter, Segoe UI, Arial, sans-serif" }}>
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "20px 24px 24px", gap: 16 }}>
-
+    <div
+      style={{
+        height: "100vh",
+        width: "100vw",
+        overflow: "hidden",
+        background: bg,
+        color: textMain,
+        fontFamily: "Inter, Segoe UI, Arial, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          padding: "20px 24px 24px",
+          gap: 16,
+        }}
+      >
         {/* ── HEADER ──────────────────────────────────────────────── */}
-        <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: headerBg, borderRadius: 20, padding: "14px 24px",
-          border: "1px solid rgba(148,163,184,.12)",
-          flexShrink: 0,
-        }}>
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: headerBg,
+            borderRadius: 20,
+            padding: "14px 24px",
+            border: "1px solid rgba(148,163,184,.12)",
+            flexShrink: 0,
+          }}
+        >
           {/* Left: logo + org */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
             <img
               src="/logo.png"
               alt="logo"
-              style={{ width: 52, height: 52, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 4, flexShrink: 0 }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                objectFit: "contain",
+                background: "#fff",
+                padding: 4,
+                flexShrink: 0,
+              }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
             />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 900, lineHeight: 1.2, color: "#f8fafc" }}>{branchName}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, lineHeight: 1.2, color: "#f8fafc" }}>
+                {branchName}
+              </div>
             </div>
           </div>
 
@@ -223,17 +343,41 @@ function DisplayView() {
 
           {/* Right: clock + lang */}
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ fontSize: 48, fontWeight: 900, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: "#f8fafc" }}>
+            <div
+              style={{
+                fontSize: 48,
+                fontWeight: 900,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+                color: "#f8fafc",
+              }}
+            >
               {timeStr}
             </div>
-            <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,.08)", borderRadius: 999, padding: 4 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: "rgba(255,255,255,.08)",
+                borderRadius: 999,
+                padding: 4,
+              }}
+            >
               {LANGS.map((l) => (
-                <button key={l.code} onClick={() => setLang(l.code)} style={{
-                  border: 0, cursor: "pointer", borderRadius: 999, padding: "6px 12px",
-                  background: lang === l.code ? "#e0f2fe" : "transparent",
-                  color: lang === l.code ? "#0369a1" : "#94a3b8",
-                  fontWeight: 900, fontSize: 13,
-                }}>
+                <button
+                  key={l.code}
+                  onClick={() => setLang(l.code)}
+                  style={{
+                    border: 0,
+                    cursor: "pointer",
+                    borderRadius: 999,
+                    padding: "6px 12px",
+                    background: lang === l.code ? "#e0f2fe" : "transparent",
+                    color: lang === l.code ? "#0369a1" : "#94a3b8",
+                    fontWeight: 900,
+                    fontSize: 13,
+                  }}
+                >
                   {l.code.toUpperCase()}
                 </button>
               ))}
@@ -242,55 +386,122 @@ function DisplayView() {
         </header>
 
         {/* ── MAIN PANELS ─────────────────────────────────────────── */}
-        <main style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, flex: 1, minHeight: 0 }}>
-
-          {/* LEFT — SERVING */}
-          <section style={{
-            background: leftBg, border: `1.5px solid ${leftBorder}`,
-            borderRadius: 24, padding: "24px 28px", display: "flex", flexDirection: "column",
+        <main
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            flex: 1,
             minHeight: 0,
-          }}>
-            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "0.1em", color: "#0369a1", marginBottom: 20 }}>
+          }}
+        >
+          {/* LEFT — SERVING */}
+          <section
+            style={{
+              background: leftBg,
+              border: `1.5px solid ${leftBorder}`,
+              borderRadius: 24,
+              padding: "24px 28px",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 20,
+                fontWeight: 900,
+                letterSpacing: "0.1em",
+                color: "#0369a1",
+                marginBottom: 20,
+              }}
+            >
               {SERVING_LBL}
             </div>
 
             {servingRows.length === 0 ? (
-              <div style={{ flex: 1, display: "grid", placeItems: "center", color: "#94a3b8", textAlign: "center" }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#94a3b8",
+                  textAlign: "center",
+                }}
+              >
                 <div style={{ fontSize: 22, fontWeight: 700 }}>{EMPTY_LBL}</div>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  flex: 1,
+                  overflow: "hidden",
+                }}
+              >
                 {servingRows.map((ticket) => {
                   const counter = getCounter(ticket.counter_id);
                   const counterLabel = counter?.number
                     ? `${counter.number}-${WINDOW_LBL}`
-                    : (counter ? (loc(counter as unknown as Record<string, unknown>, "name", lang) || counter.name_uz) : "");
+                    : counter
+                      ? loc(counter as unknown as Record<string, unknown>, "name", lang) ||
+                        counter.name_uz
+                      : "";
                   return (
-                    <div key={ticket.id} style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      background: "rgba(255,255,255,.60)", borderRadius: 16,
-                      padding: "12px 16px",
-                      backdropFilter: "blur(8px)",
-                      flex: "0 0 auto",
-                    }}>
+                    <div
+                      key={ticket.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: "rgba(255,255,255,.60)",
+                        borderRadius: 16,
+                        padding: "12px 16px",
+                        backdropFilter: "blur(8px)",
+                        flex: "0 0 auto",
+                      }}
+                    >
                       {/* Ticket number */}
-                      <div style={{
-                        background: ticketBg, color: "#f8fafc", borderRadius: 12,
-                        padding: "10px 18px", fontSize: 36, fontWeight: 900,
-                        letterSpacing: "0.04em", flexShrink: 0, minWidth: 110, textAlign: "center",
-                      }}>
+                      <div
+                        style={{
+                          background: ticketBg,
+                          color: "#f8fafc",
+                          borderRadius: 12,
+                          padding: "10px 18px",
+                          fontSize: 36,
+                          fontWeight: 900,
+                          letterSpacing: "0.04em",
+                          flexShrink: 0,
+                          minWidth: 110,
+                          textAlign: "center",
+                        }}
+                      >
                         {ticket.ticket_number}
                       </div>
 
                       {/* Arrow */}
-                      <div style={{ fontSize: 32, fontWeight: 900, color: "#0369a1", flexShrink: 0 }}>›</div>
+                      <div
+                        style={{ fontSize: 32, fontWeight: 900, color: "#0369a1", flexShrink: 0 }}
+                      >
+                        ›
+                      </div>
 
                       {/* Window */}
-                      <div style={{
-                        flex: 1, background: windowBg, color: "#fff", borderRadius: 12,
-                        padding: "10px 18px", fontSize: 32, fontWeight: 900,
-                        textAlign: "center", textTransform: "uppercase",
-                      }}>
+                      <div
+                        style={{
+                          flex: 1,
+                          background: windowBg,
+                          color: "#fff",
+                          borderRadius: 12,
+                          padding: "10px 18px",
+                          fontSize: 32,
+                          fontWeight: 900,
+                          textAlign: "center",
+                          textTransform: "uppercase",
+                        }}
+                      >
                         {counterLabel}
                       </div>
                     </div>
@@ -301,14 +512,29 @@ function DisplayView() {
           </section>
 
           {/* RIGHT — WAITING */}
-          <section style={{
-            background: rightBg, border: "1px solid rgba(148,163,184,.12)",
-            borderRadius: 24, padding: "24px 28px", display: "flex", flexDirection: "column",
-            minHeight: 0,
-          }}>
+          <section
+            style={{
+              background: rightBg,
+              border: "1px solid rgba(148,163,184,.12)",
+              borderRadius: 24,
+              padding: "24px 28px",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+            }}
+          >
             {/* Header row */}
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "0.1em", color: "#38bdf8" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <div
+                style={{ fontSize: 20, fontWeight: 900, letterSpacing: "0.1em", color: "#38bdf8" }}
+              >
                 {WAITING_LBL}
               </div>
               <div style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: "#64748b" }}>
@@ -318,22 +544,43 @@ function DisplayView() {
 
             {/* 3-column grid */}
             {waiting.length === 0 ? (
-              <div style={{ flex: 1, display: "grid", placeItems: "center", color: "#64748b", textAlign: "center" }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#64748b",
+                  textAlign: "center",
+                }}
+              >
                 <div style={{ fontSize: 64, fontWeight: 900 }}>0</div>
               </div>
             ) : (
-              <div style={{
-                display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10,
-                flex: 1, overflow: "hidden", alignContent: "start",
-              }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 10,
+                  flex: 1,
+                  overflow: "hidden",
+                  alignContent: "start",
+                }}
+              >
                 {waiting.map((ticket) => (
-                  <div key={ticket.id} style={{
-                    background: waitGrid, borderRadius: 14,
-                    display: "grid", placeItems: "center",
-                    padding: "18px 8px",
-                    fontSize: 34, fontWeight: 900, letterSpacing: "0.03em",
-                    color: "#f8fafc",
-                  }}>
+                  <div
+                    key={ticket.id}
+                    style={{
+                      background: waitGrid,
+                      borderRadius: 14,
+                      display: "grid",
+                      placeItems: "center",
+                      padding: "18px 8px",
+                      fontSize: 34,
+                      fontWeight: 900,
+                      letterSpacing: "0.03em",
+                      color: "#f8fafc",
+                    }}
+                  >
                     {ticket.ticket_number}
                   </div>
                 ))}
@@ -345,10 +592,49 @@ function DisplayView() {
 
       {/* ── ANNOUNCEMENT OVERLAY ────────────────────────────────── */}
       {announced && (
-        <div style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", background: "rgba(2,6,23,.88)", backdropFilter: "blur(10px)", zIndex: 100 }}>
-          <div style={{ borderRadius: 44, background: "#f8fafc", color: "#06111f", padding: "56px 80px", textAlign: "center", boxShadow: "0 30px 120px rgba(0,0,0,.5)" }}>
-            <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: "0.14em", color: "#0284c7", textTransform: "uppercase" }}>{SERVING_LBL}</div>
-            <div style={{ marginTop: 16, fontSize: 180, lineHeight: 0.9, fontWeight: 950, letterSpacing: "0.02em" }}>{announced.ticket_number}</div>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            background: "rgba(2,6,23,.88)",
+            backdropFilter: "blur(10px)",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 44,
+              background: "#f8fafc",
+              color: "#06111f",
+              padding: "56px 80px",
+              textAlign: "center",
+              boxShadow: "0 30px 120px rgba(0,0,0,.5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 900,
+                letterSpacing: "0.14em",
+                color: "#0284c7",
+                textTransform: "uppercase",
+              }}
+            >
+              {SERVING_LBL}
+            </div>
+            <div
+              style={{
+                marginTop: 16,
+                fontSize: 180,
+                lineHeight: 0.9,
+                fontWeight: 950,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {announced.ticket_number}
+            </div>
             <div style={{ marginTop: 28, fontSize: 52, fontWeight: 900, color: "#334155" }}>
               {announced.counter_number ?? ""} {WINDOW_LBL.split(" ")[0]}
             </div>

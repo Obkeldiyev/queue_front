@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as CustomerRouteImport } from './routes/customer'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
@@ -62,6 +63,11 @@ const DisplayRoute = DisplayRouteImport.update({
 const CustomerRoute = CustomerRouteImport.update({
   id: '/customer',
   path: '/customer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -158,6 +164,7 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/chat': typeof ChatRoute
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/chat': typeof ChatRoute
   '/customer': typeof CustomerRoute
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/chat'
     | '/customer'
     | '/display'
     | '/kiosk'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/chat'
     | '/customer'
     | '/display'
     | '/kiosk'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/chat'
     | '/customer'
     | '/display'
     | '/kiosk'
@@ -316,6 +328,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  ChatRoute: typeof ChatRoute
   CustomerRoute: typeof CustomerRoute
   DisplayRoute: typeof DisplayRoute
   KioskRoute: typeof KioskRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/customer'
       fullPath: '/customer'
       preLoaderRoute: typeof CustomerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -540,6 +560,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  ChatRoute: ChatRoute,
   CustomerRoute: CustomerRoute,
   DisplayRoute: DisplayRoute,
   KioskRoute: KioskRoute,
